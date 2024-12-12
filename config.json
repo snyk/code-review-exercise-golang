@@ -1,0 +1,11 @@
+{
+  "logger": {
+    "level": "info"
+  },
+  "npm": {
+    "registryUrl": "https://registry.npmjs.org"
+  },
+  "server": {
+    "addr": ":8080"
+  }
+}
