@@ -1,3 +1,5 @@
+APP=npmjs-deps-fetcher
+
 .DEFAULT_GOAL := all
 .PHONY: all
 all: ## Build pipeline
@@ -17,6 +19,13 @@ clean: ## Cleanup artifacts of the build pipeline
 	rm -f coverage.*
 	rm -f '"$(shell go env GOCACHE)/../golangci-lint"'
 	go clean -i -cache -testcache -modcache -fuzzcache -x
+
+.PHONY: docker-build
+docker-build: ## Build the docker image for the service
+	docker build \
+		--build-arg APP=${APP} \
+		-t ${CIRCLE_PROJECT_REPONAME}:${CIRCLE_WORKFLOW_ID} \
+		-t gcr.io/snyk-main/${APP}:${CIRCLE_SHA1} .
 
 .PHONY: mod
 mod: ## Add missing or remove unused modules from go.mod
