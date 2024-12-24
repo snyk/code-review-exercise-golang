@@ -1,6 +1,6 @@
 module github.com/snyk/npmjs-deps-fetcher
 
-go 1.23.4
+go 1.23
 
 require (
 	github.com/golangci/golangci-lint v1.62.2
