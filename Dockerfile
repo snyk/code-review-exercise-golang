@@ -3,22 +3,22 @@ FROM golang:1.23
 # Set destination for COPY
 WORKDIR /app
 
-# Download Go modules
+# Add go module files
 COPY go.mod go.sum ./
-RUN go mod download
 
-# Copy the source code. Note the slash at the end, as explained in
-# https://docs.docker.com/reference/dockerfile/#copy
-COPY *.go ./
+# Download and cache dependencies in a dedicated layer.
+RUN --mount=type=secret,id=gh_token,required=true \
+    git config --global url."https://$(cat /run/secrets/gh_token):x-oauth-basic@github.com/snyk".insteadOf "https://github.com/snyk" && \
+    go env -w GOPRIVATE=github.com/snyk && \
+    go mod download && \
+    git config --global --unset url."https://$(cat /run/secrets/gh_token):x-oauth-basic@github.com/snyk".insteadOf
 
-# Build
-RUN CGO_ENABLED=0 GOOS=linux go build -o /npmjs-deps-fetcher
+# Add source code & build
+COPY . .
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 go build -v -o /npmjs-deps-fetcher
 
-# Optional:
-# To bind to a TCP port, runtime parameters must be supplied to the docker command.
-# But we can document in the Dockerfile what ports
-# the application is going to listen on by default.
-# https://docs.docker.com/reference/dockerfile/#expose
+
 EXPOSE 8080
 
 # Run

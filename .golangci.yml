@@ -79,6 +79,8 @@ linters:
 linters-settings:
   goimports:
     local-prefixes: github.com/snyk/npmjs-deps-fetcher
+  gofumpt:
+    module-path: github.com/snyk/npmjs-deps-fetcher
   nolintlint:
     allow-unused: false
     require-explanation: true

@@ -20,10 +20,16 @@ clean: ## Cleanup artifacts of the build pipeline
 	rm -f '"$(shell go env GOCACHE)/../golangci-lint"'
 	go clean -i -cache -testcache -modcache -fuzzcache -x
 
+.PHONY: configure
+configure: ## Configure local development setup
+	git config --global --replace-all url."git@github.com:snyk".insteadOf "https://github.com/snyk"
+	go env -w GOPRIVATE=github.com/snyk
+
 .PHONY: docker-build
 docker-build: ## Build the docker image for the service
 	docker build \
 		--build-arg APP=${APP} \
+		--secret id=gh_token,env=GITHUB_PRIVATE_TOKEN \
 		-t ${CIRCLE_PROJECT_REPONAME}:${CIRCLE_WORKFLOW_ID} \
 		-t gcr.io/snyk-main/${APP}:${CIRCLE_SHA1} .
 
