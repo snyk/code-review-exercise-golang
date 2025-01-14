@@ -40,11 +40,11 @@ func (pms PackageManagerService) GetPackageDependencies(pkgName, pkgVersion stri
 	for dependencyName, dependencyVersionConstraint := range npmPkg.Dependencies {
 		pkgMeta, err := pms.packageGetter.FetchPackageMeta(dependencyName)
 		if err != nil {
-			// should fail the whole operation? or return partial response
+			return nil, fmt.Errorf("failed to get sub-package: %w", err)
 		}
 		concreteVersion, err := HighestCompatibleVersion(dependencyVersionConstraint, pkgMeta)
 		if err != nil {
-			// should fail the whole operation? or return partial response
+			return nil, fmt.Errorf("failed to match version for sub-package: %w", err)
 		}
 		rootPkg.Dependencies[dependencyName] = concreteVersion
 	}
