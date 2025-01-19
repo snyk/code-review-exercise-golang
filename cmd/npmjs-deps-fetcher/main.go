@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -10,17 +11,17 @@ import (
 )
 
 func main() {
-	fmt.Println("Ciao!")
 	handler := api.New()
 
-	server := &http.Server{
-		Addr:              "localhost:3000",
+	srv := &http.Server{
+		Addr:              "localhost:8080",
 		Handler:           handler,
 		ReadHeaderTimeout: time.Second * 10,
 		WriteTimeout:      time.Second * 30,
 	}
-	fmt.Println("Server running on http://localhost:3000/")
-	if err := server.ListenAndServe(); err != nil {
+
+	fmt.Println("HTTP server running on localhost:8080")
+	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		fmt.Println(err)
 		os.Exit(1)
 	}

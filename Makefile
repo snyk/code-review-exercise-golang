@@ -1,89 +1,108 @@
-APP=npmjs-deps-fetcher
+APP?=npmjs-deps-fetcher
+
+ARCH?=$(shell go env GOARCH)
+CIRCLE_PROJECT_REPONAME?=${APP}
+CIRCLE_SHA1?=dev
+CIRCLE_WORKFLOW_ID?=dev
+GO_BIN?=$(shell pwd)/.bin/go
+OS?=$(shell go env GOOS)
+
+SHELL:=env PATH=$(GO_BIN):$(PATH) $(SHELL)
+
+GOTESTSUM_V?=1.12.0
+GOCI_LINT_V?=v1.60.1
 
 .DEFAULT_GOAL := all
+
 .PHONY: all
-all: ## Build pipeline
-all: mod inst gen fmt build lint test
+all: mod gen fmt build lint test
 
-.PHONY: precommit
-precommit: ## Validate the branch before commit
-precommit: all vuln
-
-.PHONY: ci
-ci: ## CI Build pipeline
-ci: precommit diff
+.PHONY: build
+build: ## Build the app Go binary
+	$(call print-target)
+	go build -o .bin/ ./cmd/${APP}/...
 
 .PHONY: clean
 clean: ## Cleanup artifacts of the build pipeline
 	$(call print-target)
-	rm -f coverage.*
-	rm -f '"$(shell go env GOCACHE)/../golangci-lint"'
+	rm -f test/results/*
+	rm -f coverage.html
+	golangci-lint cache clean
 	go clean -i -cache -testcache -modcache -fuzzcache -x
-
-.PHONY: configure
-configure: ## Configure local development setup
-	git config --global --replace-all url."git@github.com:snyk".insteadOf "https://github.com/snyk"
-	go env -w GOPRIVATE=github.com/snyk
 
 .PHONY: docker-build
 docker-build: ## Build the docker image for the service
-	docker build \
-		--build-arg APP=${APP} \
-		--secret id=gh_token,env=GITHUB_PRIVATE_TOKEN \
-		-t ${CIRCLE_PROJECT_REPONAME}:${CIRCLE_WORKFLOW_ID} \
-		-t gcr.io/snyk-main/${APP}:${CIRCLE_SHA1} .
-
-.PHONY: mod
-mod: ## Add missing or remove unused modules from go.mod
 	$(call print-target)
-	go mod tidy
+	docker build --build-arg APP=${APP} -t ${APP}:${CIRCLE_SHA1} -t ${CIRCLE_PROJECT_REPONAME}:${CIRCLE_WORKFLOW_ID} .
 
-PHONY: inst
-inst: ## Install tools
+.PHONY: docker-run
+docker-run: docker-build ## Run the docker image for the service
 	$(call print-target)
-	cd tools && GOBIN=$(shell pwd)/tools/bin go install $(shell cd tools && go list -e -f '{{ join .Imports " " }}' -tags=tools)
+	docker run -t -p 8080:8080 ${APP}:${CIRCLE_SHA1}
+
+.PHONY: download
+download: ## Download dependencies to local cache
+	$(call print-target)
+	go mod download
 
 .PHONY: fmt
-fmt: ## Format code
-	go fmt ./...
+fmt: ## Format source code based on golangci
+	$(call print-target)
+	golangci-lint run --fix -v ./...
 
 .PHONY: gen
 gen: ## Code generation
 	$(call print-target)
 	go generate ./...
 
-.PHONY: build
-build: ## Build
-build: fmt gen
-	go build -o bin/
+.PHONY: help
+help: ## List Makefile targets
+	@echo
+	@printf "\033[32m[ Makefile Targets ]\033[0m\n"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-10s\033[0m %s\n", $$1, $$2}'
+	@echo
+
+PHONY: install-tools
+install-tools: ## Install tools
+	$(call print-target)
+	mkdir -p ${GO_BIN}
+	GOBIN=${GO_BIN} go install $(shell go list -e -f '{{ join .Imports " " }}' -tags=tools)
+ifndef CI
+	curl -sSfL 'https://raw.githubusercontent.com/golangci/golangci-lint/${GOCI_LINT_V}/install.sh' | sh -s -- -b ${GO_BIN} ${GOCI_LINT_V}
+	curl -sSfL 'https://github.com/gotestyourself/gotestsum/releases/download/v${GOTESTSUM_V}/gotestsum_${GOTESTSUM_V}_${OS}_${ARCH}.tar.gz' | tar -xz -C ${GO_BIN} gotestsum
+endif
 
 .PHONY: lint
-lint: ## Lint and (attempt) fix (golangci-lint)
+lint: ## Lint using golangci-lint
 	$(call print-target)
-	tools/bin/golangci-lint run --fix
+ifdef CI
+	mkdir -p test/results
+	golangci-lint run --out-format junit-xml ./... > test/results/lint-tests.xml
+else
+	golangci-lint run -v ./...
+endif
+
+.PHONY: mod
+mod: ## Add missing or remove unused modules from go.mod
+	$(call print-target)
+	go mod tidy
+
+.PHONY: run
+run: ## Run service
+	$(call print-target)
+	go run ./cmd/${APP}/...
+
+.PHONY: test
+test: ## Run unit tests
+	$(call print-target)
+	mkdir -p test/results
+	gotestsum --junitfile test/results/unit-tests.xml -- -race -covermode=atomic -coverprofile=test/results/cover.out -v ./...
+	go tool cover -html=test/results/cover.out -o coverage.html
 
 .PHONY: vuln
 vuln: ## Look for vulnerabilities (https://vuln.go.dev/)
 	$(call print-target)
-	tools/bin/govulncheck ./...
-
-.PHONY: test
-test: ## Test
-	$(call print-target)
-	go test -race -covermode=atomic -coverprofile=coverage.out -coverpkg=./... ./...
-	go tool cover -html=coverage.out -o coverage.html
-
-.PHONY: diff
-diff: ## Fail if branch isn't clean (i.e. git diff isn't empty)
-	$(call print-target)
-	git diff --exit-code
-	RES=$$(git status --porcelain) ; if [ -n "$$RES" ]; then echo $$RES && exit 1 ; fi
-
-.PHONY: help
-help: ## Shows this list of Makefile targets
-	@echo
-	@printf "\033[32m[ Makefile Targets ]\033[0m\n"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-10s\033[0m %s\n", $$1, $$2}'
+	govulncheck ./...
 
 define print-target
 	@echo

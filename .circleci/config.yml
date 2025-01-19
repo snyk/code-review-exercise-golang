@@ -1,7 +1,20 @@
 version: 2.1
 
 orbs:
+  go: circleci/go@2
   prodsec: snyk/prodsec-orb@1
+  publish: snyk/publish@1
+  snyk: snyk/snyk@2
+
+base_image: &base_image
+  resource_class: small
+  docker:
+    - image: cimg/base:2025.01
+
+go_image: &go_image
+  resource_class: medium
+  docker:
+    - image: cimg/go:1.23.5
 
 commands:
   setup_build_remote_docker:
@@ -9,44 +22,136 @@ commands:
       - setup_remote_docker:
           docker_layer_caching: true
 
-  build_image:
+jobs:
+  build:
+    <<: *base_image
+    environment:
+      BUILDKIT_PROGRESS: plain
+      DOCKER_BUILDKIT: 1
     steps:
+      - checkout
+      - setup_build_remote_docker
       - run:
           name: Build Docker image
           command: make docker-build
+      - publish/save-image
 
-jobs:
-  test_and_build:
-    docker:
-      - image: cimg/go:1.23
+  check-fmt-gen:
+    <<: *go_image
     steps:
       - checkout
-      - restore_cache:
-          keys:
-            - go-mod-v4-{{ checksum "go.sum" }}
+      - go/mod-download-cached
       - run:
-          name: Install Dependencies
-          command: go mod download
-      - save_cache:
-          key: go-mod-v4-{{ checksum "go.sum" }}
-          paths:
-            - "/go/pkg/mod"
+          name: Install tools
+          command: make install-tools
       - run:
-          name: Run tests
+          name: Run go generate commands
+          command: make gen
+      - run:
+          name: Run format command
+          command: make fmt
+      - run:
+          name: Verify generated files match committed versions
+          command: git status --porcelain=v1 | tee /dev/stderr | wc -l | grep -qE '^ *0 *$'
+
+  lint:
+    <<: *go_image
+    steps:
+      - checkout
+      - go/mod-download-cached
+      - run:
+          name: Install tools
+          command: make install-tools
+      - run:
+          name: Run linters
+          command: make lint
+      - store_test_results:
+          path: test/results
+      - store_artifacts:
+          path: test/results
+
+  scan-container:
+    <<: *base_image
+    steps:
+      - setup_remote_docker
+      - publish/load-image
+      - snyk/scan:
+          command: container test
+          fail-on-issues: true
+          severity-threshold: high
+          monitor-on-build: false
+          docker-image-name: ${CIRCLE_PROJECT_REPONAME}:${CIRCLE_WORKFLOW_ID}
+
+  security-scans:
+    <<: *go_image
+    steps:
+      - checkout
+      - go/mod-download-cached
+      - prodsec/security_scans:
+          mode: auto
+          open-source-additional-arguments: --exclude=test
+
+  test:
+    <<: *go_image
+    steps:
+      - checkout
+      - go/mod-download-cached
+      - run:
+          name: Run unit tests
           command: make test
       - store_test_results:
-          path: /tmp/test-reports
-      - setup_build_remote_docker
-      - build_image
+          path: test/results
+      - store_artifacts:
+          path: test/results
 
 workflows:
   version: 2
-  CICD:
+  CI:
     jobs:
       - prodsec/secrets-scan:
           name: Scan repository for secrets
-          context:
-            - snyk-bot-slack
-          channel: alerts-app-sec
-          trusted-branch: main
-      - test_and_build
+          channel: some-channel
+          filters:
+            branches:
+              ignore:
+                - main
+
+      - security-scans:
+          name: Security Scans
+          filters:
+            branches:
+              ignore:
+                - main
+
+      - check-fmt-gen:
+          name: Check Fmt & Gen (`make fmt / make gen`)
+          filters:
+            branches:
+              ignore:
+                - main
+
+      - lint:
+          name: Lint (`make lint`)
+          filters:
+            branches:
+              ignore:
+                - main
+
+      - test:
+          name: Unit Tests (`make test`)
+          filters:
+            branches:
+              ignore:
+                - main
+
+      - build:
+          name: Build Docker Image
+          filters:
+            branches:
+              ignore:
+                - main
+
+      - scan-container:
+          name: Scan Container
+          requires:
+            - Build Docker Image
