@@ -1,9 +1,7 @@
 APP?=npmjs-deps-fetcher
 
 ARCH?=$(shell go env GOARCH)
-CIRCLE_PROJECT_REPONAME?=${APP}
-CIRCLE_SHA1?=dev
-CIRCLE_WORKFLOW_ID?=dev
+GITHUB_SHA?=dev
 GO_BIN?=$(shell pwd)/.bin/go
 OS?=$(shell go env GOOS)
 
@@ -26,19 +24,18 @@ build: ## Build the app Go binary
 clean: ## Cleanup artifacts of the build pipeline
 	$(call print-target)
 	rm -f test/results/*
-	rm -f coverage.html
 	golangci-lint cache clean
 	go clean -i -cache -testcache -modcache -fuzzcache -x
 
 .PHONY: docker-build
 docker-build: ## Build the docker image for the service
 	$(call print-target)
-	docker build --build-arg APP=${APP} -t ${APP}:${CIRCLE_SHA1} -t ${CIRCLE_PROJECT_REPONAME}:${CIRCLE_WORKFLOW_ID} .
+	docker build --build-arg APP=${APP} -t ${APP}:${GITHUB_SHA} .
 
 .PHONY: docker-run
 docker-run: docker-build ## Run the docker image for the service
 	$(call print-target)
-	docker run -t -p 8080:8080 ${APP}:${CIRCLE_SHA1}
+	docker run -t -p 8080:8080 ${APP}:${GITHUB_SHA}
 
 .PHONY: download
 download: ## Download dependencies to local cache
@@ -67,20 +64,13 @@ install-tools: ## Install tools
 	$(call print-target)
 	mkdir -p ${GO_BIN}
 	GOBIN=${GO_BIN} go install $(shell go list -e -f '{{ join .Imports " " }}' -tags=tools)
-ifndef CI
 	curl -sSfL 'https://raw.githubusercontent.com/golangci/golangci-lint/${GOCI_LINT_V}/install.sh' | sh -s -- -b ${GO_BIN} ${GOCI_LINT_V}
 	curl -sSfL 'https://github.com/gotestyourself/gotestsum/releases/download/v${GOTESTSUM_V}/gotestsum_${GOTESTSUM_V}_${OS}_${ARCH}.tar.gz' | tar -xz -C ${GO_BIN} gotestsum
-endif
 
 .PHONY: lint
 lint: ## Lint using golangci-lint
 	$(call print-target)
-ifdef CI
-	mkdir -p test/results
-	golangci-lint run --out-format junit-xml ./... > test/results/lint-tests.xml
-else
 	golangci-lint run -v ./...
-endif
 
 .PHONY: mod
 mod: ## Add missing or remove unused modules from go.mod
@@ -97,7 +87,7 @@ test: ## Run unit tests
 	$(call print-target)
 	mkdir -p test/results
 	gotestsum --junitfile test/results/unit-tests.xml -- -race -covermode=atomic -coverprofile=test/results/cover.out -v ./...
-	go tool cover -html=test/results/cover.out -o coverage.html
+	go tool cover -html=test/results/cover.out -o test/results/coverage.html
 
 .PHONY: vuln
 vuln: ## Look for vulnerabilities (https://vuln.go.dev/)

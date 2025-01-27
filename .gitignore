@@ -40,3 +40,6 @@ go.work
 
 ### Mac OS X files
 .DS_Store
+
+### Test results ###
+/test/results
