@@ -63,7 +63,6 @@ PHONY: install-tools
 install-tools: ## Install tools
 	$(call print-target)
 	mkdir -p ${GO_BIN}
-	GOBIN=${GO_BIN} go install $(shell go list -e -f '{{ join .Imports " " }}' -tags=tools)
 	curl -sSfL 'https://raw.githubusercontent.com/golangci/golangci-lint/${GOCI_LINT_V}/install.sh' | sh -s -- -b ${GO_BIN} ${GOCI_LINT_V}
 	curl -sSfL 'https://github.com/gotestyourself/gotestsum/releases/download/v${GOTESTSUM_V}/gotestsum_${GOTESTSUM_V}_${OS}_${ARCH}.tar.gz' | tar -xz -C ${GO_BIN} gotestsum
 
@@ -88,11 +87,6 @@ test: ## Run unit tests
 	mkdir -p test/results
 	gotestsum --junitfile test/results/unit-tests.xml -- -race -covermode=atomic -coverprofile=test/results/cover.out -v ./...
 	go tool cover -html=test/results/cover.out -o test/results/coverage.html
-
-.PHONY: vuln
-vuln: ## Look for vulnerabilities (https://vuln.go.dev/)
-	$(call print-target)
-	govulncheck ./...
 
 define print-target
 	@echo
