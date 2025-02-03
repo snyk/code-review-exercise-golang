@@ -1,38 +1,45 @@
-# Mac OS X files
-.DS_Store
+### Git ###
+# Created by git for backups. To disable backups in Git:
+# $ git config --global mergetool.keepBackup false
+*.orig
 
+# Created by git when using merge tools for conflicts
+*.BACKUP.*
+*.BASE.*
+*.LOCAL.*
+*.REMOTE.*
+*_BACKUP_*.txt
+*_BASE_*.txt
+*_LOCAL_*.txt
+*_REMOTE_*.txt
+
+### Go ###
 # Binaries for programs and plugins
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
-bin/
 
-# Tools binaries
-tools/bin/
-
-# Test binary, build with `go test -c`
+# Test binary, built with `go test -c`
 *.test
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
-coverage.*
 
-# Project-local glide cache, RE: https://github.com/Masterminds/glide/issues/736
-.glide/
+# Go workspace file
+go.work
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+### IDEs ###
+.idea
+.vscode
+.dccache
 
-# Jetbrains IDEs
-.idea/
-*.iws
+### Tooling ###
+/.bin/
 
-## Apple Xcode
-xcuserdata/
+### Mac OS X files
+.DS_Store
 
-# Microsoft Visual Studio Code
-.history/
-*.vsix
-.vscode/
+### Test results ###
+/test/results
