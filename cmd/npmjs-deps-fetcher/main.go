@@ -2,27 +2,42 @@ package main
 
 import (
 	"errors"
-	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/snyk/npmjs-deps-fetcher/internal/api"
+	packagemanager "github.com/snyk/npmjs-deps-fetcher/internal/domain/package_manager"
+	"github.com/snyk/npmjs-deps-fetcher/internal/npm"
 )
 
 func main() {
-	handler := api.New()
+	log := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
+	cfg, err := parseConfig()
+	if err != nil {
+		log.Error("failed to parse configuration", slog.Any("error", err))
+		os.Exit(1)
+	}
+
+	npmClient, err := npm.NewClient(cfg.NPM)
+	if err != nil {
+		log.Error("failed to create NPM client", slog.Any("error", err))
+	}
+
+	handler := api.New(packagemanager.NewPackageManagerService(npmClient))
 
 	srv := &http.Server{
-		Addr:              "localhost:8080",
+		Addr:              cfg.ListenAddr,
 		Handler:           handler,
 		ReadHeaderTimeout: time.Second * 10,
 		WriteTimeout:      time.Second * 30,
 	}
 
-	fmt.Println("HTTP server running on localhost:8080")
+	log.Info("HTTP server running", slog.String("addr", cfg.ListenAddr))
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		fmt.Println(err)
+		log.Error("HTTP server exited ungracefully", slog.Any("error", err))
 		os.Exit(1)
 	}
 }

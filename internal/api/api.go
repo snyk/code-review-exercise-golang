@@ -6,7 +6,6 @@ import (
 
 	"github.com/gorilla/mux"
 
-	getter "github.com/snyk/npmjs-deps-fetcher/internal/domain/package_getter"
 	packagemanager "github.com/snyk/npmjs-deps-fetcher/internal/domain/package_manager"
 )
 
@@ -15,10 +14,10 @@ const (
 	responseError = 500
 )
 
-func New() http.Handler {
+func New(mngr packagemanager.PackageManagerService) http.Handler {
 	router := mux.NewRouter()
 	router.Handle("/", http.HandlerFunc(basicHandler))
-	router.Handle("/package/{package}/{version}", http.HandlerFunc(packageHandler))
+	router.Handle("/package/{package}/{version}", packageHandler(mngr))
 	return router
 }
 
@@ -28,30 +27,30 @@ func basicHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Write(response)
 }
 
-func packageHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	pkgName := vars["package"]
-	pkgVersion := vars["version"]
+func packageHandler(mngr packagemanager.PackageManagerService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		pkgName := vars["package"]
+		pkgVersion := vars["version"]
 
-	packageManager := packagemanager.NewPackageManagerService(getter.NewNpmPackageGetter())
+		pkgResult, err := mngr.GetPackageDependencies(pkgName, pkgVersion)
+		if err != nil {
+			println(err.Error())
+			w.WriteHeader(responseError)
+			return
+		}
 
-	pkgResult, err := packageManager.GetPackageDependencies(pkgName, pkgVersion)
-	if err != nil {
-		println(err.Error())
-		w.WriteHeader(responseError)
-		return
+		stringified, err := json.MarshalIndent(pkgResult, "", "  ")
+		if err != nil {
+			println(err.Error())
+			w.WriteHeader(responseError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(responseOK)
+
+		// Ignoring ResponseWriter errors
+		_, _ = w.Write(stringified)
 	}
-
-	stringified, err := json.MarshalIndent(pkgResult, "", "  ")
-	if err != nil {
-		println(err.Error())
-		w.WriteHeader(responseError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(responseOK)
-
-	// Ignoring ResponseWriter errors
-	_, _ = w.Write(stringified)
 }
