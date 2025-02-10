@@ -1,27 +1,32 @@
 package packagemanager
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
 
 	"github.com/Masterminds/semver/v3"
-
-	getter "github.com/snyk/npmjs-deps-fetcher/internal/domain/package_getter"
+	"github.com/snyk/npmjs-deps-fetcher/internal/npm"
 )
 
 type PackageManagerService struct {
-	packageGetter getter.PackageGetter
+	fetcher PackageFetcher
 }
 
-func NewPackageManagerService(packageGetter getter.PackageGetter) PackageManagerService {
+type PackageFetcher interface {
+	FetchPackage(ctx context.Context, name, version string) (*npm.Package, error)
+	FetchPackageMeta(ctx context.Context, name string) (*npm.PackageMeta, error)
+}
+
+func NewPackageManagerService(pkgFetcher PackageFetcher) PackageManagerService {
 	return PackageManagerService{
-		packageGetter: packageGetter,
+		fetcher: pkgFetcher,
 	}
 }
 
-func (pms PackageManagerService) GetPackageDependencies(pkgName, pkgVersion string) (*getter.NpmPackageVersion, error) {
-	pkgMeta, err := pms.packageGetter.FetchPackageMeta(pkgName)
+func (pms PackageManagerService) GetPackageDependencies(pkgName, pkgVersion string) (*npm.Package, error) {
+	pkgMeta, err := pms.fetcher.FetchPackageMeta(context.TODO(), pkgName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get package: %w", err)
 	}
@@ -31,14 +36,14 @@ func (pms PackageManagerService) GetPackageDependencies(pkgName, pkgVersion stri
 		return nil, fmt.Errorf("failed to match version: %w", err)
 	}
 
-	rootPkg := &getter.NpmPackageVersion{Name: pkgName, Version: concreteVersion, Dependencies: map[string]string{}}
-	npmPkg, err := pms.packageGetter.FetchPackage(rootPkg.Name, rootPkg.Version)
+	rootPkg := &npm.Package{Name: pkgName, Version: concreteVersion, Dependencies: map[string]string{}}
+	npmPkg, err := pms.fetcher.FetchPackage(context.TODO(), rootPkg.Name, rootPkg.Version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get package %v by version %v : %w", rootPkg.Name, rootPkg.Version, err)
 	}
 
 	for dependencyName, dependencyVersionConstraint := range npmPkg.Dependencies {
-		pkgMeta, err := pms.packageGetter.FetchPackageMeta(dependencyName)
+		pkgMeta, err := pms.fetcher.FetchPackageMeta(context.TODO(), dependencyName)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get sub-package: %w", err)
 		}
@@ -52,7 +57,7 @@ func (pms PackageManagerService) GetPackageDependencies(pkgName, pkgVersion stri
 	return rootPkg, nil
 }
 
-func filterCompatibleVersions(constraint *semver.Constraints, pkgMeta *getter.NpmPackageMetaResponse) semver.Collection {
+func filterCompatibleVersions(constraint *semver.Constraints, pkgMeta *npm.PackageMeta) semver.Collection {
 	var compatible semver.Collection
 	for version := range pkgMeta.Versions {
 		semVer, err := semver.NewVersion(version)
@@ -66,7 +71,7 @@ func filterCompatibleVersions(constraint *semver.Constraints, pkgMeta *getter.Np
 	return compatible
 }
 
-func HighestCompatibleVersion(constraintStr string, versions *getter.NpmPackageMetaResponse) (string, error) {
+func HighestCompatibleVersion(constraintStr string, versions *npm.PackageMeta) (string, error) {
 	constraint, err := semver.NewConstraint(constraintStr)
 	if err != nil {
 		return "", err

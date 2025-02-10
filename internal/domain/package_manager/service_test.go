@@ -7,6 +7,7 @@ import (
 
 	packagegetter "github.com/snyk/npmjs-deps-fetcher/internal/domain/package_getter"
 	packagemanager "github.com/snyk/npmjs-deps-fetcher/internal/domain/package_manager"
+	"github.com/snyk/npmjs-deps-fetcher/internal/npm"
 )
 
 type PackageManagerSuite struct {
@@ -32,7 +33,7 @@ func (s *PackageManagerSuite) Test_GetPackageDependencies_WithValidInput_ReturnP
 	name := "react"
 	version := "16.3.0"
 
-	versionMap := map[string]packagegetter.NpmPackageResponse{
+	versionMap := map[string]npm.Package{
 		"16.3.0": {
 			Name:         name,
 			Version:      version,
@@ -64,7 +65,7 @@ func (s *PackageManagerSuite) Test_GetPackageDependencies_WithUnmatchingVersion_
 	name := "react"
 	version := "16.3.0"
 
-	versionMap := map[string]packagegetter.NpmPackageResponse{
+	versionMap := map[string]npm.Package{
 		"0.0.0": {
 			Name:         name,
 			Version:      "0.0.0",
@@ -85,7 +86,7 @@ func (s *PackageManagerSuite) Test_GetPackageDependencies_WithUnexistingVersion_
 	name := "react"
 	version := "16.3.0"
 
-	versionMap := map[string]packagegetter.NpmPackageResponse{
+	versionMap := map[string]npm.Package{
 		"16.3.0": {
 			Name:         name,
 			Version:      version,
@@ -106,8 +107,8 @@ func (s *PackageManagerSuite) Test_GetPackageDependencies_WithUnexistingVersion_
 
 func (s *PackageManagerSuite) Test_HighestCompatibleVersion_WithMatchingVersion_ShouldReturnIt() {
 	constraint := "^16.3"
-	versions := packagegetter.NpmPackageMetaResponse{
-		Versions: map[string]packagegetter.NpmPackageResponse{
+	versions := npm.PackageMeta{
+		Versions: map[string]npm.Package{
 			"16.3.0": {},
 			"16.3.1": {},
 		},
@@ -121,8 +122,8 @@ func (s *PackageManagerSuite) Test_HighestCompatibleVersion_WithMatchingVersion_
 
 func (s *PackageManagerSuite) Test_HighestCompatibleVersion_WithNoMatchingVersion_ShouldError() {
 	constraint := "^16.4"
-	versions := packagegetter.NpmPackageMetaResponse{
-		Versions: map[string]packagegetter.NpmPackageResponse{
+	versions := npm.PackageMeta{
+		Versions: map[string]npm.Package{
 			"16.3.0": {},
 			"16.3.1": {},
 		},
