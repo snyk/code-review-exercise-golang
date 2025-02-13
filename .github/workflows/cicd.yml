@@ -66,6 +66,8 @@ jobs:
         uses: snyk/actions/golang@0.4.0
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: monitor
   test:
     runs-on: ubuntu-latest
     steps:
