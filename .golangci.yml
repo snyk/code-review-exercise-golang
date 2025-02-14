@@ -65,8 +65,6 @@ linters-settings:
     check-type-assertions: true
   exhaustive:
     default-signifies-exhaustive: true
-  goconst:
-    ignore-calls: false
   gocritic:
     enabled-tags:
       - diagnostic

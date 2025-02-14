@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"github.com/Masterminds/semver/v3"
+
 	"github.com/snyk/npmjs-deps-fetcher/internal/npm"
 )
 
@@ -25,7 +26,7 @@ func NewPackageManagerService(pkgFetcher PackageFetcher) PackageManagerService {
 	}
 }
 
-func (pms PackageManagerService) GetPackageDependencies(pkgName, pkgVersion string) (*npm.Package, error) {
+func (pms PackageManagerService) ResolvePackage(pkgName, pkgVersion string) (*npm.Package, error) {
 	pkgMeta, err := pms.fetcher.FetchPackageMeta(context.TODO(), pkgName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get package: %w", err)

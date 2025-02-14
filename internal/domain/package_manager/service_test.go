@@ -29,7 +29,7 @@ func (s *PackageManagerSuite) SetupTest() {
 func (s *PackageManagerSuite) TearDownTest() {
 }
 
-func (s *PackageManagerSuite) Test_GetPackageDependencies_WithValidInput_ReturnPackageData() {
+func (s *PackageManagerSuite) Test_ResolvePackage_WithValidInput_ReturnPackageData() {
 	name := "react"
 	version := "16.3.0"
 
@@ -42,7 +42,7 @@ func (s *PackageManagerSuite) Test_GetPackageDependencies_WithValidInput_ReturnP
 	}
 
 	s.Getter.OverrideVersions = versionMap
-	result, err := s.PackageManagerService.GetPackageDependencies(name, version)
+	result, err := s.PackageManagerService.ResolvePackage(name, version)
 	s.Require().NoError(err)
 
 	s.Equal(name, result.Name)
@@ -50,18 +50,18 @@ func (s *PackageManagerSuite) Test_GetPackageDependencies_WithValidInput_ReturnP
 	s.Equal(map[string]string{}, result.Dependencies)
 }
 
-func (s *PackageManagerSuite) Test_GetPackageDependencies_WithUnexistingPackage_ShouldError() {
+func (s *PackageManagerSuite) Test_ResolvePackage_WithUnexistingPackage_ShouldError() {
 	name := "react"
 	version := "16.3.0"
 
 	s.Getter.FetchPackageMetaError = true
-	_, err := s.PackageManagerService.GetPackageDependencies(name, version)
+	_, err := s.PackageManagerService.ResolvePackage(name, version)
 	s.Require().Error(err)
 	// TODO: switch for error type check
 	s.Contains(err.Error(), "failed to get package")
 }
 
-func (s *PackageManagerSuite) Test_GetPackageDependencies_WithUnmatchingVersion_ShouldError() {
+func (s *PackageManagerSuite) Test_ResolvePackage_WithUnmatchingVersion_ShouldError() {
 	name := "react"
 	version := "16.3.0"
 
@@ -76,13 +76,13 @@ func (s *PackageManagerSuite) Test_GetPackageDependencies_WithUnmatchingVersion_
 	s.Getter.OverrideVersions = versionMap
 
 	s.Getter.FetchPackageError = true
-	_, err := s.PackageManagerService.GetPackageDependencies(name, version)
+	_, err := s.PackageManagerService.ResolvePackage(name, version)
 	s.Require().Error(err)
 	// TODO: switch for error type check
 	s.Contains(err.Error(), "failed to match version")
 }
 
-func (s *PackageManagerSuite) Test_GetPackageDependencies_WithUnexistingVersion_ShouldError() {
+func (s *PackageManagerSuite) Test_ResolvePackage_WithUnexistingVersion_ShouldError() {
 	name := "react"
 	version := "16.3.0"
 
@@ -99,7 +99,7 @@ func (s *PackageManagerSuite) Test_GetPackageDependencies_WithUnexistingVersion_
 	// Can this happen? The previous part checks that the version exists, so why would
 	// this not return the right info? Network Error maybe?
 	s.Getter.FetchPackageError = true
-	_, err := s.PackageManagerService.GetPackageDependencies(name, version)
+	_, err := s.PackageManagerService.ResolvePackage(name, version)
 	s.Require().Error(err)
 	// TODO: switch for error type check
 	s.Contains(err.Error(), "failed to get package "+name+" by version "+version)

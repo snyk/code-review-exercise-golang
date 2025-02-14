@@ -1,14 +1,5 @@
 APP?=npmjs-deps-fetcher
-
-ARCH?=$(shell go env GOARCH)
 GITHUB_SHA?=dev
-GO_BIN?=$(shell pwd)/.bin/go
-OS?=$(shell go env GOOS)
-
-SHELL:=env PATH=$(GO_BIN):$(PATH) $(SHELL)
-
-GOTESTSUM_V?=1.12.0
-GOCI_LINT_V?=v1.60.1
 
 .DEFAULT_GOAL := all
 
@@ -24,7 +15,7 @@ build: ## Build the app Go binary
 clean: ## Cleanup artifacts of the build pipeline
 	$(call print-target)
 	rm -f test/results/*
-	golangci-lint cache clean
+	go tool golangci-lint cache clean
 	go clean -i -cache -testcache -modcache -fuzzcache -x
 
 .PHONY: docker-build
@@ -45,7 +36,7 @@ download: ## Download dependencies to local cache
 .PHONY: fmt
 fmt: ## Format source code based on golangci
 	$(call print-target)
-	golangci-lint run --fix -v ./...
+	go tool golangci-lint run --fix -v ./...
 
 .PHONY: gen
 gen: ## Code generation
@@ -59,17 +50,10 @@ help: ## List Makefile targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-10s\033[0m %s\n", $$1, $$2}'
 	@echo
 
-PHONY: install-tools
-install-tools: ## Install tools
-	$(call print-target)
-	mkdir -p ${GO_BIN}
-	curl -sSfL 'https://raw.githubusercontent.com/golangci/golangci-lint/${GOCI_LINT_V}/install.sh' | sh -s -- -b ${GO_BIN} ${GOCI_LINT_V}
-	curl -sSfL 'https://github.com/gotestyourself/gotestsum/releases/download/v${GOTESTSUM_V}/gotestsum_${GOTESTSUM_V}_${OS}_${ARCH}.tar.gz' | tar -xz -C ${GO_BIN} gotestsum
-
 .PHONY: lint
 lint: ## Lint using golangci-lint
 	$(call print-target)
-	golangci-lint run -v ./...
+	go tool golangci-lint run -v ./...
 
 .PHONY: mod
 mod: ## Add missing or remove unused modules from go.mod
@@ -85,7 +69,7 @@ run: ## Run service
 test: ## Run unit tests
 	$(call print-target)
 	mkdir -p test/results
-	gotestsum --junitfile test/results/unit-tests.xml -- -race -covermode=atomic -coverprofile=test/results/cover.out -v ./...
+	go tool gotestsum --junitfile test/results/unit-tests.xml -- -race -covermode=atomic -coverprofile=test/results/cover.out -v ./...
 	go tool cover -html=test/results/cover.out -o test/results/coverage.html
 
 define print-target
