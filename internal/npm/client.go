@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+var _ PackageFetcher = (*Client)(nil)
+
 type (
 	// Client represents the NPM HTTP client.
 	Client struct {
