@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-ARG GO_VERSION=1.23.5
+ARG GO_VERSION=1.24.0
 
 ###############
 # Build stage #
