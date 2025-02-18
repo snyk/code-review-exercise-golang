@@ -10,8 +10,10 @@
 package mockshandler
 
 import (
+	context "context"
 	reflect "reflect"
 
+	semver "github.com/Masterminds/semver/v3"
 	npm "github.com/snyk/npmjs-deps-fetcher/internal/npm"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -41,16 +43,16 @@ func (m *MockPackageResolver) EXPECT() *MockPackageResolverMockRecorder {
 }
 
 // ResolvePackage mocks base method.
-func (m *MockPackageResolver) ResolvePackage(name, constraint string) (*npm.Package, error) {
+func (m *MockPackageResolver) ResolvePackage(ctx context.Context, name string, constraint *semver.Constraints) (*npm.Package, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResolvePackage", name, constraint)
+	ret := m.ctrl.Call(m, "ResolvePackage", ctx, name, constraint)
 	ret0, _ := ret[0].(*npm.Package)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ResolvePackage indicates an expected call of ResolvePackage.
-func (mr *MockPackageResolverMockRecorder) ResolvePackage(name, constraint any) *gomock.Call {
+func (mr *MockPackageResolverMockRecorder) ResolvePackage(ctx, name, constraint any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolvePackage", reflect.TypeOf((*MockPackageResolver)(nil).ResolvePackage), name, constraint)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolvePackage", reflect.TypeOf((*MockPackageResolver)(nil).ResolvePackage), ctx, name, constraint)
 }

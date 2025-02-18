@@ -20,26 +20,52 @@ import (
 func TestPackageVersion(t *testing.T) {
 	testCases := []struct {
 		name               string
-		setup              func(testing.TB) handler.PackageResolver
+		setup              func(testing.TB) (*http.Request, handler.PackageResolver)
 		expectedStatusCode int
 		expectedBody       string
 	}{
 		{
-			name: "resolve deps failed",
-			setup: func(tb testing.TB) handler.PackageResolver {
+			name: "invalid version constraint",
+			setup: func(tb testing.TB) (*http.Request, handler.PackageResolver) {
 				tb.Helper()
+
+				req := httptest.NewRequest(http.MethodGet, "http://localhost:8080/package/foo/latest", http.NoBody)
+				req.SetPathValue("package", "foo")
+				req.SetPathValue("version", "latest")
+
+				return req, mockshandler.NewMockPackageResolver(gomock.NewController(t))
+			},
+			expectedStatusCode: http.StatusBadRequest,
+			expectedBody:       "{\"error\":\"invalid version constraint\"}\n",
+		},
+		{
+			name: "resolve deps failed",
+			setup: func(tb testing.TB) (*http.Request, handler.PackageResolver) {
+				tb.Helper()
+
+				req := httptest.NewRequest(http.MethodGet, "http://localhost:8080/package/foo/1.0.1", http.NoBody)
+				req.SetPathValue("package", "foo")
+				req.SetPathValue("version", "1.0.1")
+
 				resolver := mockshandler.NewMockPackageResolver(gomock.NewController(t))
-				resolver.EXPECT().ResolvePackage("foo", "1.0.1").Return(nil, errors.New("something bad happened"))
-				return resolver
+				resolver.EXPECT().ResolvePackage(gomock.Any(), "foo", gomock.Any()).Return(nil, errors.New("something bad happened"))
+
+				return req, resolver
 			},
 			expectedStatusCode: http.StatusInternalServerError,
 			expectedBody:       "{\"error\":\"internal server error\"}\n",
-		}, {
+		},
+		{
 			name: "resolve deps succeeded",
-			setup: func(tb testing.TB) handler.PackageResolver {
+			setup: func(tb testing.TB) (*http.Request, handler.PackageResolver) {
 				tb.Helper()
+
+				req := httptest.NewRequest(http.MethodGet, "http://localhost:8080/package/foo/1.0.1", http.NoBody)
+				req.SetPathValue("package", "foo")
+				req.SetPathValue("version", "1.0.1")
+
 				resolver := mockshandler.NewMockPackageResolver(gomock.NewController(t))
-				resolver.EXPECT().ResolvePackage("foo", "1.0.1").Return(&npm.Package{
+				resolver.EXPECT().ResolvePackage(gomock.Any(), "foo", gomock.Any()).Return(&npm.Package{
 					Name:    "foo",
 					Version: "1.0.1",
 					Dependencies: map[string]string{
@@ -48,7 +74,8 @@ func TestPackageVersion(t *testing.T) {
 						"qux": "1.2.1",
 					},
 				}, nil)
-				return resolver
+
+				return req, resolver
 			},
 			expectedStatusCode: http.StatusOK,
 			expectedBody:       "{\"name\":\"foo\",\"version\":\"1.0.1\",\"dependencies\":{\"bar\":\"0.1.0\",\"baz\":\"2.0.1\",\"qux\":\"1.2.1\"}}\n",
@@ -57,11 +84,10 @@ func TestPackageVersion(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			h := handler.PackageVersion(slog.DiscardHandler, tc.setup(t))
+			req, resolver := tc.setup(t)
+
+			h := handler.PackageVersion(slog.DiscardHandler, resolver)
 			w := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, "http://localhost:8080/package/foo/1.0.1", http.NoBody)
-			req.SetPathValue("package", "foo")
-			req.SetPathValue("version", "1.0.1")
 
 			h.ServeHTTP(w, req)
 

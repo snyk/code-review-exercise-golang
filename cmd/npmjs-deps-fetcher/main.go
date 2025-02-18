@@ -8,7 +8,6 @@ import (
 	"os"
 	"time"
 
-	packagemanager "github.com/snyk/npmjs-deps-fetcher/internal/domain/package_manager"
 	"github.com/snyk/npmjs-deps-fetcher/internal/handler"
 	"github.com/snyk/npmjs-deps-fetcher/internal/npm"
 )
@@ -28,14 +27,14 @@ func run(log *slog.Logger) error {
 		return fmt.Errorf("parse configuration: %w", err)
 	}
 
-	npmClient, err := npm.NewClient(cfg.NPM)
+	client, err := npm.NewClient(cfg.NPM)
 	if err != nil {
 		return fmt.Errorf("create NPM client: %w", err)
 	}
-	mngr := packagemanager.NewPackageManagerService(npmClient)
+	resolver := npm.NewResolver(client)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /package/{package}/{version}", handler.PackageVersion(log.Handler(), mngr))
+	mux.HandleFunc("GET /package/{package}/{version}", handler.PackageVersion(log.Handler(), resolver))
 
 	srv := http.Server{
 		Addr:              cfg.ListenAddr,
