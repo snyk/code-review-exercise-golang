@@ -25,6 +25,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 FROM gcr.io/distroless/static-debian12
 
 COPY --from=builder /go/bin/app .
+COPY config.json .
 
 EXPOSE 8080
 CMD ["/app"]

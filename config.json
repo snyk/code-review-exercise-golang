@@ -4,7 +4,7 @@
     "timeout": "15s"
   },
   "server": {
-    "addr": "localhost:8080",
+    "addr": ":8080",
     "readHeaderTimeout": "10s",
     "writeTimeout": "30s"
   }
