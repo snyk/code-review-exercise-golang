@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
@@ -13,7 +14,13 @@ const configFilePath = "config.json"
 
 // config represents the application configuration.
 type config struct {
-	// NPM configure the client to communicate with the NPM registry.
+	// Logger configures the application logger that prints to stdout.
+	Logger struct {
+		// Level defines the minimum record level that will be logged.
+		Level slog.LevelVar `json:"level"`
+	} `json:"logger"`
+
+	// NPM configures the client to communicate with the NPM registry.
 	NPM npm.ClientConfig `json:"npm"`
 
 	// Server is the HTTP server related configuration.
