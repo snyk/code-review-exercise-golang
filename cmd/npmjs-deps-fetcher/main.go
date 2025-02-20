@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/snyk/npmjs-deps-fetcher/internal/handler"
 	"github.com/snyk/npmjs-deps-fetcher/internal/npm"
@@ -37,13 +36,13 @@ func run(log *slog.Logger) error {
 	mux.HandleFunc("GET /package/{package}/{version}", handler.PackageVersion(log.Handler(), resolver))
 
 	srv := http.Server{
-		Addr:              cfg.ListenAddr,
+		Addr:              cfg.Server.Addr,
 		Handler:           mux,
-		ReadHeaderTimeout: time.Second * 10,
-		WriteTimeout:      time.Second * 30,
+		ReadHeaderTimeout: cfg.Server.readHeaderTimeout,
+		WriteTimeout:      cfg.Server.writeTimeout,
 	}
 
-	log.Info("HTTP server running", slog.String("addr", cfg.ListenAddr))
+	log.Info("HTTP server running", slog.String("addr", cfg.Server.Addr))
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("HTTP server exited ungracefully: %w", err)
 	}

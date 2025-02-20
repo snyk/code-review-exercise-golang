@@ -1,7 +1,11 @@
 {
-  "listenAddr": "localhost:8080",
   "npm": {
     "registryUrl": "https://registry.npmjs.org/",
     "timeout": "15s"
+  },
+  "server": {
+    "addr": "localhost:8080",
+    "readHeaderTimeout": "10s",
+    "writeTimeout": "30s"
   }
 }
