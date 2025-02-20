@@ -1,4 +1,4 @@
-# Snyk code review exercise (Golang) ![GitHub Actions](https://github.com/github/docs/actions/workflows/cicd.yml/badge.svg?branch=main)
+# Snyk code review exercise (Golang) ![CICD Status](https://github.com/snyk/code-review-exercise-golang/actions/workflows/cicd.yml/badge.svg?branch=main)
 
 A web server that provides a basic HTTP API for querying the dependency tree of an [npm](https://npmjs.org) package.
 
