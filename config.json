@@ -1,4 +1,7 @@
 {
+  "logger": {
+    "level": "info"
+  },
   "npm": {
     "registryUrl": "https://registry.npmjs.org/",
     "timeout": "15s"

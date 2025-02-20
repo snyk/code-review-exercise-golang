@@ -12,19 +12,22 @@ import (
 )
 
 func main() {
-	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{}))
-
-	if err := run(log); err != nil {
-		log.Error("runtime error", slog.String("error", err.Error()))
+	if err := run(); err != nil {
+		slog.Error("runtime error", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
 }
 
-func run(log *slog.Logger) error {
+func run() error {
 	cfg, err := parseConfig()
 	if err != nil {
 		return fmt.Errorf("parse configuration: %w", err)
 	}
+
+	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: &cfg.Logger.Level,
+	}))
+	slog.SetDefault(log)
 
 	client, err := npm.NewClient(cfg.NPM)
 	if err != nil {
