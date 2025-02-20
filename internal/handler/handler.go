@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -26,16 +27,24 @@ func PackageVersion(logHandler slog.Handler, resolver PackageResolver) http.Hand
 
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
+		pkgName, pkgVersion := req.PathValue("packageName"), req.PathValue("packageVersion")
+
 		w.Header().Set("Content-Type", "application/json")
 
-		constraint, err := semver.NewConstraint(req.PathValue("packageVersion"))
+		constraint, err := semver.NewConstraint(pkgVersion)
 		if err != nil {
 			log.Debug("invalid version constraint", slog.String("error", err.Error()))
 			writeError(w, log, http.StatusBadRequest, "invalid version constraint")
 			return
 		}
 
-		deps, err := resolver.ResolvePackage(ctx, req.PathValue("packageName"), constraint)
+		deps, err := resolver.ResolvePackage(ctx, pkgName, constraint)
+		if errors.Is(err, npm.ErrPackageNotFound) {
+			log.Debug("package not found", slog.String("name", pkgName), slog.String("version", pkgVersion))
+			writeError(w, log, http.StatusNotFound, "package not found")
+			return
+		}
+
 		if err != nil {
 			log.Error("deps resolution error", slog.String("error", err.Error()))
 			writeError(w, log, http.StatusInternalServerError, "internal server error")
