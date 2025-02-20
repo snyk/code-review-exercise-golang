@@ -30,8 +30,8 @@ func TestPackageVersion(t *testing.T) {
 				tb.Helper()
 
 				req := httptest.NewRequest(http.MethodGet, "http://localhost:8080/package/foo/latest", http.NoBody)
-				req.SetPathValue("package", "foo")
-				req.SetPathValue("version", "latest")
+				req.SetPathValue("packageName", "foo")
+				req.SetPathValue("packageVersion", "latest")
 
 				return req, mockshandler.NewMockPackageResolver(gomock.NewController(t))
 			},
@@ -44,8 +44,8 @@ func TestPackageVersion(t *testing.T) {
 				tb.Helper()
 
 				req := httptest.NewRequest(http.MethodGet, "http://localhost:8080/package/foo/1.0.1", http.NoBody)
-				req.SetPathValue("package", "foo")
-				req.SetPathValue("version", "1.0.1")
+				req.SetPathValue("packageName", "foo")
+				req.SetPathValue("packageVersion", "1.0.1")
 
 				resolver := mockshandler.NewMockPackageResolver(gomock.NewController(t))
 				resolver.EXPECT().ResolvePackage(gomock.Any(), "foo", gomock.Any()).Return(nil, errors.New("something bad happened"))
@@ -61,8 +61,8 @@ func TestPackageVersion(t *testing.T) {
 				tb.Helper()
 
 				req := httptest.NewRequest(http.MethodGet, "http://localhost:8080/package/foo/1.0.1", http.NoBody)
-				req.SetPathValue("package", "foo")
-				req.SetPathValue("version", "1.0.1")
+				req.SetPathValue("packageName", "foo")
+				req.SetPathValue("packageVersion", "1.0.1")
 
 				resolver := mockshandler.NewMockPackageResolver(gomock.NewController(t))
 				resolver.EXPECT().ResolvePackage(gomock.Any(), "foo", gomock.Any()).Return(&npm.Package{

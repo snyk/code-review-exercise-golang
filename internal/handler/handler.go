@@ -28,14 +28,14 @@ func PackageVersion(logHandler slog.Handler, resolver PackageResolver) http.Hand
 		ctx := req.Context()
 		w.Header().Set("Content-Type", "application/json")
 
-		constraint, err := semver.NewConstraint(req.PathValue("version"))
+		constraint, err := semver.NewConstraint(req.PathValue("packageVersion"))
 		if err != nil {
 			log.Debug("invalid version constraint", slog.String("error", err.Error()))
 			writeError(w, log, http.StatusBadRequest, "invalid version constraint")
 			return
 		}
 
-		deps, err := resolver.ResolvePackage(ctx, req.PathValue("package"), constraint)
+		deps, err := resolver.ResolvePackage(ctx, req.PathValue("packageName"), constraint)
 		if err != nil {
 			log.Error("deps resolution error", slog.String("error", err.Error()))
 			writeError(w, log, http.StatusInternalServerError, "internal server error")
