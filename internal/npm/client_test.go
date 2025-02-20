@@ -86,7 +86,7 @@ func TestClient_FetchPackage(t *testing.T) {
 			name: "http error response decoding error",
 			transport: fakeTransport{
 				resp: &http.Response{
-					StatusCode: http.StatusNotFound,
+					StatusCode: http.StatusBadRequest,
 					Body:       io.NopCloser(strings.NewReader(`{"error":"json error"}`)),
 				},
 			},
@@ -96,11 +96,11 @@ func TestClient_FetchPackage(t *testing.T) {
 			name: "http error response decoding success",
 			transport: fakeTransport{
 				resp: &http.Response{
-					StatusCode: http.StatusNotFound,
-					Body:       io.NopCloser(strings.NewReader(`"not found"`)),
+					StatusCode: http.StatusInternalServerError,
+					Body:       io.NopCloser(strings.NewReader(`"internal server error"`)),
 				},
 			},
-			expectedErr: "http response for \"http://localhost:8080/fake-name/fake-version\": not found",
+			expectedErr: "http response for \"http://localhost:8080/fake-name/fake-version\": internal server error",
 		},
 		{
 			name: "http response decoding error",
@@ -111,6 +111,16 @@ func TestClient_FetchPackage(t *testing.T) {
 				},
 			},
 			expectedErr: "response decoding of \"http://localhost:8080/fake-name/fake-version\": json: cannot unmarshal string into Go value of type npm.Package",
+		},
+		{
+			name: "http response package not found",
+			transport: fakeTransport{
+				resp: &http.Response{
+					StatusCode: http.StatusNotFound,
+					Body:       io.NopCloser(strings.NewReader(`"not found"`)),
+				},
+			},
+			expectedErr: npm.ErrPackageNotFound.Error(),
 		},
 		{
 			name: "http response decoding",
@@ -169,7 +179,7 @@ func TestClient_FetchPackageMeta(t *testing.T) {
 			name: "http error response decoding error",
 			transport: fakeTransport{
 				resp: &http.Response{
-					StatusCode: http.StatusNotFound,
+					StatusCode: http.StatusBadRequest,
 					Body:       io.NopCloser(strings.NewReader(`{"error":"json error"}`)),
 				},
 			},
@@ -179,11 +189,11 @@ func TestClient_FetchPackageMeta(t *testing.T) {
 			name: "http error response decoding success",
 			transport: fakeTransport{
 				resp: &http.Response{
-					StatusCode: http.StatusNotFound,
-					Body:       io.NopCloser(strings.NewReader(`"not found"`)),
+					StatusCode: http.StatusInternalServerError,
+					Body:       io.NopCloser(strings.NewReader(`"internal server error"`)),
 				},
 			},
-			expectedErr: "http response for \"http://localhost:8080/fake-name\": not found",
+			expectedErr: "http response for \"http://localhost:8080/fake-name\": internal server error",
 		},
 		{
 			name: "http response decoding error",
@@ -194,6 +204,16 @@ func TestClient_FetchPackageMeta(t *testing.T) {
 				},
 			},
 			expectedErr: "response decoding of \"http://localhost:8080/fake-name\": json: cannot unmarshal string into Go value of type npm.PackageMeta",
+		},
+		{
+			name: "http response package not found",
+			transport: fakeTransport{
+				resp: &http.Response{
+					StatusCode: http.StatusNotFound,
+					Body:       io.NopCloser(strings.NewReader(`"not found"`)),
+				},
+			},
+			expectedErr: npm.ErrPackageNotFound.Error(),
 		},
 		{
 			name: "http response decoding",

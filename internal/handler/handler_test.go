@@ -39,6 +39,23 @@ func TestPackageVersion(t *testing.T) {
 			expectedBody:       "{\"error\":\"invalid version constraint\"}\n",
 		},
 		{
+			name: "package not found",
+			setup: func(tb testing.TB) (*http.Request, handler.PackageResolver) {
+				tb.Helper()
+
+				req := httptest.NewRequest(http.MethodGet, "http://localhost:8080/package/foo/1.0.1", http.NoBody)
+				req.SetPathValue("packageName", "foo")
+				req.SetPathValue("packageVersion", "1.0.1")
+
+				resolver := mockshandler.NewMockPackageResolver(gomock.NewController(t))
+				resolver.EXPECT().ResolvePackage(gomock.Any(), "foo", gomock.Any()).Return(nil, npm.ErrPackageNotFound)
+
+				return req, resolver
+			},
+			expectedStatusCode: http.StatusNotFound,
+			expectedBody:       "{\"error\":\"package not found\"}\n",
+		},
+		{
 			name: "resolve deps failed",
 			setup: func(tb testing.TB) (*http.Request, handler.PackageResolver) {
 				tb.Helper()

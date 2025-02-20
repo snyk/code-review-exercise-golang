@@ -108,7 +108,11 @@ func (c *Client) fetch(req *http.Request, obj any) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	switch resp.StatusCode {
+	case http.StatusOK:
+	case http.StatusNotFound:
+		return ErrPackageNotFound
+	default:
 		var body string
 		if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 			return fmt.Errorf("error response decoding of %q: %w", req.URL.String(), err)
