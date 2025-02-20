@@ -47,7 +47,7 @@ gen: ## Code generation
 help: ## List Makefile targets
 	@echo
 	@printf "\033[32m[ Makefile Targets ]\033[0m\n"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-10s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
 	@echo
 
 .PHONY: lint
@@ -71,6 +71,11 @@ test: ## Run unit tests
 	mkdir -p test/results
 	go tool gotestsum --junitfile test/results/unit-tests.xml -- -race -covermode=atomic -coverprofile=test/results/cover.out -v ./...
 	go tool cover -html=test/results/cover.out -o test/results/coverage.html
+
+test-int: ## Run integration tests
+	$(call print-target)
+	mkdir -p test/results
+	go tool gotestsum --junitfile test/results/integration-tests.xml -- -count=1 -tags integration -v ./test/...
 
 define print-target
 	@echo

@@ -60,8 +60,14 @@ make lint
 
 ## Testing
 
-You can run the tests with this command:
+You can run the unit-tests with this command:
 
 ```sh
 make test
+```
+
+Additionally, you can run the integration-tests with this command:
+
+```sh
+make test-int
 ```
