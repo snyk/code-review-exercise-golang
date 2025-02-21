@@ -1,11 +1,16 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/snyk/npmjs-deps-fetcher/internal/handler"
 	"github.com/snyk/npmjs-deps-fetcher/internal/npm"
@@ -25,7 +30,7 @@ func run() error {
 	}
 
 	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: &cfg.Logger.Level,
+		Level: &cfg.Logger.level,
 	}))
 	slog.SetDefault(log)
 
@@ -42,13 +47,36 @@ func run() error {
 	srv := http.Server{
 		Addr:              cfg.Server.Addr,
 		Handler:           mux,
-		ReadHeaderTimeout: cfg.Server.readHeaderTimeout,
-		WriteTimeout:      cfg.Server.writeTimeout,
+		ReadHeaderTimeout: cfg.Server.ReadHeaderTimeout,
+		WriteTimeout:      cfg.Server.WriteTimeout,
 	}
 
-	log.Info("HTTP server running", slog.String("addr", cfg.Server.Addr))
-	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return fmt.Errorf("HTTP server exited ungracefully: %w", err)
+	grp, grpCtx := errgroup.WithContext(context.Background())
+
+	grp.Go(func() error {
+		log.Info("HTTP server running", slog.String("addr", cfg.Server.Addr))
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return fmt.Errorf("HTTP server exited ungracefully: %w", err)
+		}
+		return nil
+	})
+
+	grp.Go(func() error {
+		sigc := make(chan os.Signal, 1)
+		signal.Notify(sigc, syscall.SIGTERM)
+		select {
+		case <-grpCtx.Done():
+		case sig := <-sigc:
+			log.Info("intercepted signal", slog.String("signal", sig.String()))
+			if err := srv.Close(); err != nil {
+				return fmt.Errorf("HTTP server closure: %w", err)
+			}
+		}
+		return nil
+	})
+
+	if err := grp.Wait(); err != nil {
+		return fmt.Errorf("group wait: %w", err)
 	}
 
 	return nil

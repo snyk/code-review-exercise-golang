@@ -1,0 +1,32 @@
+{
+  "name":"react",
+  "versions":{
+    "16.11.0":{
+      "name":"react",
+      "version":"16.11.0",
+      "dependencies":{
+        "loose-envify":"^1.1.0",
+        "object-assign":"^4.1.1",
+        "prop-types":"^15.6.2"
+      }
+    },
+    "16.12.0":{
+      "name":"react",
+      "version":"16.12.0",
+      "dependencies":{
+        "loose-envify":"^1.1.0",
+        "object-assign":"^4.1.1",
+        "prop-types":"^15.6.2"
+      }
+    },
+    "16.13.0":{
+      "name":"react",
+      "version":"16.13.0",
+      "dependencies":{
+        "loose-envify":"^1.1.0",
+        "object-assign":"^4.1.1",
+        "prop-types":"^15.6.2"
+      }
+    }
+  }
+}

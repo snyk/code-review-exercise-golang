@@ -1,23 +1,24 @@
 package main
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"time"
+
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 
 	"github.com/snyk/npmjs-deps-fetcher/internal/npm"
 )
-
-const configFilePath = "config.json"
 
 // config represents the application configuration.
 type config struct {
 	// Logger configures the application logger that prints to stdout.
 	Logger struct {
 		// Level defines the minimum record level that will be logged.
-		Level slog.LevelVar `json:"level"`
+		Level string `json:"level"`
+		level slog.LevelVar
 	} `json:"logger"`
 
 	// NPM configures the client to communicate with the NPM registry.
@@ -30,36 +31,58 @@ type config struct {
 		Addr string `json:"addr"`
 		// ReadHeaderTimeout is the amount of time allowed to read
 		// request headers.
-		ReadHeaderTimeout string `json:"readHeaderTimeout"`
-		readHeaderTimeout time.Duration
+		ReadHeaderTimeout time.Duration `json:"readHeaderTimeout"`
 		// WriteTimeout is the maximum duration before timing out
 		// writes of the response.
-		WriteTimeout string `json:"writeTimeout"`
-		writeTimeout time.Duration
+		WriteTimeout time.Duration `json:"writeTimeout"`
 	} `json:"server"`
 }
 
 // parseConfig parses the app configuration.
-func parseConfig() (*config, error) {
-	f, err := os.Open(configFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("opening file: %w", err)
+func parseConfig() (cfg *config, errs error) {
+	viper.AddConfigPath(".")
+	viper.SetConfigType("json")
+
+	viper.SetDefault("npm.timeout", "15s")
+	viper.SetDefault("server.readHeaderTimeout", "10s")
+	viper.SetDefault("server.writeTimeout", "30s")
+
+	if err := viper.ReadInConfig(); err != nil {
+		var errNotFound viper.ConfigFileNotFoundError
+		if !errors.As(err, &errNotFound) {
+			return nil, fmt.Errorf("reading config: %w", err)
+		}
 	}
 
-	var cfg config
-	if err = json.NewDecoder(f).Decode(&cfg); err != nil {
-		return nil, fmt.Errorf("decoding file %q: %w", configFilePath, err)
+	var logLevel, registryURL, serverAddr string
+	pflag.StringVar(&logLevel, "logger.level", "info", "Log level (debug, info, warn, error)")
+	pflag.StringVar(&registryURL, "npm.registryUrl", "", "NPM registry url")
+	pflag.StringVar(&serverAddr, "server.addr", "", "Server address")
+
+	pflag.Parse()
+
+	if err := viper.BindPFlag("logger.level", pflag.Lookup("logger.level")); err != nil {
+		errs = errors.Join(errs, fmt.Errorf("bind pflag logger.level: %w", err))
+	}
+	if err := viper.BindPFlag("npm.registryUrl", pflag.Lookup("npm.registryUrl")); err != nil {
+		errs = errors.Join(errs, fmt.Errorf("bind pflag npm.registryUrl: %w", err))
+	}
+	if err := viper.BindPFlag("server.addr", pflag.Lookup("server.addr")); err != nil {
+		errs = errors.Join(errs, fmt.Errorf("bind pflag server.addr: %w", err))
 	}
 
-	cfg.Server.readHeaderTimeout, err = time.ParseDuration(cfg.Server.WriteTimeout)
-	if err != nil {
-		return nil, fmt.Errorf("parsing readHeaderTimeout duration: %w", err)
+	if errs != nil {
+		return nil, errs
 	}
 
-	cfg.Server.writeTimeout, err = time.ParseDuration(cfg.Server.WriteTimeout)
-	if err != nil {
-		return nil, fmt.Errorf("parsing writeTimeout duration: %w", err)
+	cfg = &config{}
+	if err := viper.Unmarshal(cfg); err != nil {
+		return nil, fmt.Errorf("decoding config: %w", err)
 	}
 
-	return &cfg, nil
+	if err := cfg.Logger.level.UnmarshalText([]byte(cfg.Logger.Level)); err != nil {
+		return nil, fmt.Errorf("decoding log level: %w", err)
+	}
+
+	return cfg, nil
 }

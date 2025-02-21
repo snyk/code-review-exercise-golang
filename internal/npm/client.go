@@ -3,7 +3,6 @@ package npm
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -24,7 +23,7 @@ type (
 		// RegistryURL is the HTTP URL of the NPM registry.
 		RegistryURL string `json:"registryUrl"`
 		// Timeout configures the timeout of the HTTP client.
-		Timeout string `json:"timeout"`
+		Timeout time.Duration `json:"timeout"`
 	}
 
 	// ClientOption represent optional configuration for the NPM client.
@@ -40,23 +39,14 @@ func ClientOptionHTTPTransport(rt http.RoundTripper) ClientOption {
 }
 
 // NewClient creates an HTTP client to communicate with the NPM registry provided in the configuration.
-func NewClient(cfg ClientConfig, opts ...ClientOption) (c *Client, errs error) {
+func NewClient(cfg ClientConfig, opts ...ClientOption) (c *Client, err error) {
 	if _, err := url.Parse(cfg.RegistryURL); err != nil {
-		errs = errors.Join(errs, fmt.Errorf("registry URL configuration: %w", err))
-	}
-
-	timeout, err := time.ParseDuration(cfg.Timeout)
-	if err != nil {
-		errs = errors.Join(errs, fmt.Errorf("timeout configuration: %w", err))
-	}
-
-	if errs != nil {
-		return nil, errs
+		return nil, fmt.Errorf("registry URL configuration: %w", err)
 	}
 
 	c = &Client{
 		client: &http.Client{
-			Timeout:   timeout,
+			Timeout:   cfg.Timeout,
 			Transport: http.DefaultTransport,
 		},
 		registryURL: cfg.RegistryURL,
@@ -71,7 +61,7 @@ func NewClient(cfg ClientConfig, opts ...ClientOption) (c *Client, errs error) {
 
 // FetchPackage fetches the information of the NPM package identified by the provided name and version.
 func (c *Client) FetchPackage(ctx context.Context, name, version string) (*Package, error) {
-	u := c.registryURL + name + "/" + version
+	u := c.registryURL + "/" + name + "/" + version
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("http request creation for %q: %w", u, err)
@@ -87,7 +77,7 @@ func (c *Client) FetchPackage(ctx context.Context, name, version string) (*Packa
 
 // FetchPackage fetches the metadata of the NPM package identified by the provided name.
 func (c *Client) FetchPackageMeta(ctx context.Context, name string) (*PackageMeta, error) {
-	u := c.registryURL + name
+	u := c.registryURL + "/" + name
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("http request creation for %q: %w", u, err)

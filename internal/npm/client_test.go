@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,23 +25,15 @@ func TestNewClient(t *testing.T) {
 			name: "invalid registry url configuration",
 			cfg: npm.ClientConfig{
 				RegistryURL: "\x7f",
-				Timeout:     "15s",
+				Timeout:     15 * time.Second,
 			},
 			expectedErr: "registry URL configuration: parse \"\\x7f\": net/url: invalid control character in URL",
-		},
-		{
-			name: "invalid timeout configuration",
-			cfg: npm.ClientConfig{
-				RegistryURL: "https://a-valid-url",
-				Timeout:     "invalid",
-			},
-			expectedErr: "timeout configuration: time: invalid duration \"invalid\"",
 		},
 		{
 			name: "valid configuration",
 			cfg: npm.ClientConfig{
 				RegistryURL: "https://a-valid-url",
-				Timeout:     "15s",
+				Timeout:     15 * time.Second,
 			},
 		},
 	}
@@ -144,8 +137,8 @@ func TestClient_FetchPackage(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			client, err := npm.NewClient(npm.ClientConfig{
-				RegistryURL: "http://localhost:8080/",
-				Timeout:     "15s",
+				RegistryURL: "http://localhost:8080",
+				Timeout:     15 * time.Second,
 			}, npm.ClientOptionHTTPTransport(tc.transport))
 			require.NoError(t, err)
 
@@ -252,8 +245,8 @@ func TestClient_FetchPackageMeta(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			client, err := npm.NewClient(npm.ClientConfig{
-				RegistryURL: "http://localhost:8080/",
-				Timeout:     "15s",
+				RegistryURL: "http://localhost:8080",
+				Timeout:     15 * time.Second,
 			}, npm.ClientOptionHTTPTransport(tc.transport))
 			require.NoError(t, err)
 
