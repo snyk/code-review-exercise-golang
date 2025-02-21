@@ -4,8 +4,8 @@ package integration_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -64,8 +64,12 @@ func TestPackageNameVersionEndpoint(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
-	body, err := io.ReadAll(resp.Body)
+	content := map[string]any{}
+	err = json.NewDecoder(resp.Body).Decode(&content)
 	require.NoError(t, err)
 
-	assert.Equal(t, expectedBody, body)
+	body, err := json.MarshalIndent(content, "", "  ")
+	require.NoError(t, err)
+
+	assert.Equal(t, string(expectedBody), string(body))
 }
