@@ -3,12 +3,9 @@
     "level": "info"
   },
   "npm": {
-    "registryUrl": "https://registry.npmjs.org/",
-    "timeout": "15s"
+    "registryUrl": "https://registry.npmjs.org"
   },
   "server": {
-    "addr": ":8080",
-    "readHeaderTimeout": "10s",
-    "writeTimeout": "30s"
+    "addr": ":8080"
   }
 }

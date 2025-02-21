@@ -1,0 +1,29 @@
+{
+  "name":"prop-types",
+  "versions":{
+    "0.1.0":{"name":"prop-types","version":"0.1.0","dependencies":null},
+    "0.2.0":{"name":"prop-types","version":"0.2.0","dependencies":{"invariant":"^2.2.0"}},
+    "15.5.0":{"name":"prop-types","version":"15.5.0","dependencies":{"fbjs":"^0.8.9"}},
+    "15.5.0-alpha.0":{"name":"prop-types","version":"15.5.0-alpha.0","dependencies":{"fbjs":"^0.8.9"}},
+    "15.5.1":{"name":"prop-types","version":"15.5.1","dependencies":{"fbjs":"^0.8.9"}},
+    "15.5.10":{"name":"prop-types","version":"15.5.10","dependencies":{"fbjs":"^0.8.9","loose-envify":"^1.3.1"}},
+    "15.5.2":{"name":"prop-types","version":"15.5.2","dependencies":{"fbjs":"^0.8.9"}},
+    "15.5.3":{"name":"prop-types","version":"15.5.3","dependencies":{"fbjs":"^0.8.9"}},
+    "15.5.4":{"name":"prop-types","version":"15.5.4","dependencies":{"fbjs":"^0.8.9"}},
+    "15.5.5":{"name":"prop-types","version":"15.5.5","dependencies":{"fbjs":"^0.8.9"}},
+    "15.5.6":{"name":"prop-types","version":"15.5.6","dependencies":{"fbjs":"^0.8.9"}},
+    "15.5.7":{"name":"prop-types","version":"15.5.7","dependencies":{"fbjs":"^0.8.9"}},
+    "15.5.7-alpha":{"name":"prop-types","version":"15.5.7-alpha","dependencies":{"fbjs":"^0.8.9"}},
+    "15.5.7-alpha.1":{"name":"prop-types","version":"15.5.7-alpha.1","dependencies":{"fbjs":"^0.8.9"}},
+    "15.5.8":{"name":"prop-types","version":"15.5.8","dependencies":{"fbjs":"^0.8.9"}},
+    "15.5.9":{"name":"prop-types","version":"15.5.9","dependencies":{"fbjs":"^0.8.9","loose-envify":"^1.3.1"}},
+    "15.6.0":{"name":"prop-types","version":"15.6.0","dependencies":{"fbjs":"^0.8.16","loose-envify":"^1.3.1","object-assign":"^4.1.1"}},
+    "15.6.1":{"name":"prop-types","version":"15.6.1","dependencies":{"fbjs":"^0.8.16","loose-envify":"^1.3.1","object-assign":"^4.1.1"}},
+    "15.6.2":{"name":"prop-types","version":"15.6.2","dependencies":{"loose-envify":"^1.3.1","object-assign":"^4.1.1"}},
+    "15.7.0":{"name":"prop-types","version":"15.7.0","dependencies":{"object-assign":"^4.1.1","react-is":"^16.8.1"}},
+    "15.7.1":{"name":"prop-types","version":"15.7.1","dependencies":{"object-assign":"^4.1.1","react-is":"^16.8.1"}},
+    "15.7.2":{"name":"prop-types","version":"15.7.2","dependencies":{"loose-envify":"^1.4.0","object-assign":"^4.1.1","react-is":"^16.8.1"}},
+    "15.8.0":{"name":"prop-types","version":"15.8.0","dependencies":{"loose-envify":"^1.4.0","object-assign":"^4.1.1","react-is":"^16.13.1"}},
+    "15.8.1":{"name":"prop-types","version":"15.8.1","dependencies":{"loose-envify":"^1.4.0","object-assign":"^4.1.1","react-is":"^16.13.1"}}
+  }
+}

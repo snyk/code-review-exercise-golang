@@ -78,4 +78,15 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: Run tests
-        run: go test -v --race -coverprofile=covprofile ./...
+        run: make test
+  test-int:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Run integration tests
+        run: make test-int
