@@ -1,6 +1,7 @@
 package handler_test
 
 import (
+	"context"
 	"errors"
 	"io"
 	"log/slog"
@@ -8,6 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -48,7 +50,7 @@ func TestPackageVersion(t *testing.T) {
 				req.SetPathValue("packageVersion", "1.0.1")
 
 				resolver := mockshandler.NewMockPackageResolver(gomock.NewController(t))
-				resolver.EXPECT().ResolvePackage(gomock.Any(), "foo", gomock.Any()).Return(nil, npm.ErrPackageNotFound)
+				resolver.EXPECT().ResolvePackage(gomock.Any(), gomock.Any(), gomock.Any()).Return(npm.ErrPackageNotFound)
 
 				return req, resolver
 			},
@@ -65,7 +67,7 @@ func TestPackageVersion(t *testing.T) {
 				req.SetPathValue("packageVersion", "1.0.1")
 
 				resolver := mockshandler.NewMockPackageResolver(gomock.NewController(t))
-				resolver.EXPECT().ResolvePackage(gomock.Any(), "foo", gomock.Any()).Return(nil, errors.New("something bad happened"))
+				resolver.EXPECT().ResolvePackage(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("something bad happened"))
 
 				return req, resolver
 			},
@@ -82,20 +84,21 @@ func TestPackageVersion(t *testing.T) {
 				req.SetPathValue("packageVersion", "1.0.1")
 
 				resolver := mockshandler.NewMockPackageResolver(gomock.NewController(t))
-				resolver.EXPECT().ResolvePackage(gomock.Any(), "foo", gomock.Any()).Return(&npm.Package{
-					Name:    "foo",
-					Version: "1.0.1",
-					Dependencies: map[string]string{
-						"bar": "0.1.0",
-						"baz": "2.0.1",
-						"qux": "1.2.1",
-					},
-				}, nil)
+				resolver.EXPECT().ResolvePackage(gomock.Any(), gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, _ *semver.Constraints, npmPkg *npm.NpmPackageVersion) error {
+						npmPkg.Version = "1.0.1"
+						npmPkg.Dependencies = map[string]*npm.NpmPackageVersion{
+							"bar": {Name: "bar", Version: "0.1.0"},
+							"baz": {Name: "baz", Version: "2.0.1"},
+						}
+						return nil
+					})
 
 				return req, resolver
 			},
 			expectedStatusCode: http.StatusOK,
-			expectedBody:       "{\"name\":\"foo\",\"version\":\"1.0.1\",\"dependencies\":{\"bar\":\"0.1.0\",\"baz\":\"2.0.1\",\"qux\":\"1.2.1\"}}\n",
+			expectedBody: "{\"name\":\"foo\",\"version\":\"1.0.1\",\"dependencies\"" +
+				":{\"bar\":{\"name\":\"bar\",\"version\":\"0.1.0\",\"dependencies\":null},\"baz\":{\"name\":\"baz\",\"version\":\"2.0.1\",\"dependencies\":null}}}\n",
 		},
 	}
 
