@@ -18,7 +18,7 @@ import (
 // PackageResolver resolves the metadata and dependencies of an [npm.Package],
 // based on its name and a version constraint.
 type PackageResolver interface {
-	ResolvePackage(ctx context.Context, name string, constraint *semver.Constraints) (*npm.Package, error)
+	ResolvePackage(ctx context.Context, constraint *semver.Constraints, npmPkg *npm.NpmPackageVersion) error
 }
 
 // PackageVersion is the [http.HandlerFunc] for GET /package/{package}/{version}.
@@ -38,7 +38,9 @@ func PackageVersion(logHandler slog.Handler, resolver PackageResolver) http.Hand
 			return
 		}
 
-		deps, err := resolver.ResolvePackage(ctx, pkgName, constraint)
+		npmPkg := &npm.NpmPackageVersion{Name: pkgName, Dependencies: map[string]*npm.NpmPackageVersion{}}
+
+		err = resolver.ResolvePackage(ctx, constraint, npmPkg)
 		if errors.Is(err, npm.ErrPackageNotFound) {
 			log.Debug("package not found", slog.String("name", pkgName), slog.String("version", pkgVersion))
 			writeError(w, log, http.StatusNotFound, "package not found")
@@ -51,7 +53,7 @@ func PackageVersion(logHandler slog.Handler, resolver PackageResolver) http.Hand
 			return
 		}
 
-		if err := json.NewEncoder(w).Encode(deps); err != nil {
+		if err := json.NewEncoder(w).Encode(npmPkg); err != nil {
 			log.Error("deps encoding error", slog.Any("error", err))
 			writeError(w, log, http.StatusInternalServerError, "internal server error")
 			return
