@@ -1,6 +1,12 @@
 package npm
 
 type (
+	NpmPackageVersion struct {
+		Name         string                        `json:"name"`
+		Version      string                        `json:"version"`
+		Dependencies map[string]*NpmPackageVersion `json:"dependencies"`
+	}
+
 	// Package contains the info of an NPM package version.
 	Package struct {
 		// Name is the name of the NPM package.

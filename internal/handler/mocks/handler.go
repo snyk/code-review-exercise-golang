@@ -43,16 +43,15 @@ func (m *MockPackageResolver) EXPECT() *MockPackageResolverMockRecorder {
 }
 
 // ResolvePackage mocks base method.
-func (m *MockPackageResolver) ResolvePackage(ctx context.Context, name string, constraint *semver.Constraints) (*npm.Package, error) {
+func (m *MockPackageResolver) ResolvePackage(ctx context.Context, constraint *semver.Constraints, npmPkg *npm.NpmPackageVersion) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResolvePackage", ctx, name, constraint)
-	ret0, _ := ret[0].(*npm.Package)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret := m.ctrl.Call(m, "ResolvePackage", ctx, constraint, npmPkg)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // ResolvePackage indicates an expected call of ResolvePackage.
-func (mr *MockPackageResolverMockRecorder) ResolvePackage(ctx, name, constraint any) *gomock.Call {
+func (mr *MockPackageResolverMockRecorder) ResolvePackage(ctx, constraint, npmPkg any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolvePackage", reflect.TypeOf((*MockPackageResolver)(nil).ResolvePackage), ctx, name, constraint)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolvePackage", reflect.TypeOf((*MockPackageResolver)(nil).ResolvePackage), ctx, constraint, npmPkg)
 }

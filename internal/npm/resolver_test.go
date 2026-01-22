@@ -20,10 +20,10 @@ func TestResolver_ResolvePackage(t *testing.T) {
 	pkgName := "foo"
 
 	testCases := []struct {
-		name        string
-		setup       func(testing.TB) npm.PackageFetcher
-		expectedPkg *npm.Package
-		expectedErr string
+		name           string
+		setup          func(testing.TB) npm.PackageFetcher
+		expectedNpmPkg *npm.NpmPackageVersion
+		expectedErr    string
 	}{
 		{
 			name: "fetch meta failure for root package",
@@ -90,27 +90,6 @@ func TestResolver_ResolvePackage(t *testing.T) {
 			expectedErr: "invalid version constraint: improper constraint: latest",
 		},
 		{
-			name: "fetch meta failure for dependency package",
-			setup: func(tb testing.TB) npm.PackageFetcher {
-				tb.Helper()
-				fetcher := mocksnpm.NewMockPackageFetcher(gomock.NewController(t))
-				fetcher.EXPECT().FetchPackageMeta(gomock.Any(), pkgName).Return(&npm.PackageMeta{
-					Name: pkgName,
-					Versions: map[string]npm.Package{
-						"1.0.6": {Name: pkgName, Version: "1.0.6"},
-					},
-				}, nil)
-				fetcher.EXPECT().FetchPackage(gomock.Any(), pkgName, "1.0.6").Return(&npm.Package{
-					Name:         pkgName,
-					Version:      "1.0.6",
-					Dependencies: map[string]string{"bar": "^2.0.1"},
-				}, nil)
-				fetcher.EXPECT().FetchPackageMeta(gomock.Any(), "bar").Return(nil, errors.New("something bad happened"))
-				return fetcher
-			},
-			expectedErr: "fetch package meta bar: something bad happened",
-		},
-		{
 			name: "successful resolved package",
 			setup: func(tb testing.TB) npm.PackageFetcher {
 				tb.Helper()
@@ -138,6 +117,10 @@ func TestResolver_ResolvePackage(t *testing.T) {
 						"3.0.0": {Name: "bar", Version: "3.0.0"},
 					},
 				}, nil)
+				fetcher.EXPECT().FetchPackage(gomock.Any(), "bar", "2.0.1").Return(&npm.Package{
+					Name:    "bar",
+					Version: "2.0.1",
+				}, nil)
 				fetcher.EXPECT().FetchPackageMeta(gomock.Any(), "baz").Return(&npm.PackageMeta{
 					Name: pkgName,
 					Versions: map[string]npm.Package{
@@ -147,12 +130,27 @@ func TestResolver_ResolvePackage(t *testing.T) {
 						"1.1.0": {Name: "baz", Version: "1.1.0"},
 					},
 				}, nil)
+				fetcher.EXPECT().FetchPackage(gomock.Any(), "baz", "1.1.0").Return(&npm.Package{
+					Name:    "baz",
+					Version: "1.1.0",
+				}, nil)
 				return fetcher
 			},
-			expectedPkg: &npm.Package{
-				Name:         pkgName,
-				Version:      "1.0.8",
-				Dependencies: map[string]string{"bar": "2.0.1", "baz": "1.1.0"},
+			expectedNpmPkg: &npm.NpmPackageVersion{
+				Name:    pkgName,
+				Version: "1.0.8",
+				Dependencies: map[string]*npm.NpmPackageVersion{
+					"bar": {
+						Name:         "bar",
+						Version:      "2.0.1",
+						Dependencies: map[string]*npm.NpmPackageVersion{},
+					},
+					"baz": {
+						Name:         "baz",
+						Version:      "1.1.0",
+						Dependencies: map[string]*npm.NpmPackageVersion{},
+					},
+				},
 			},
 		},
 	}
@@ -160,11 +158,15 @@ func TestResolver_ResolvePackage(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			resolver := npm.NewResolver(tc.setup(t))
+			npmPkg := &npm.NpmPackageVersion{
+				Name:         pkgName,
+				Dependencies: map[string]*npm.NpmPackageVersion{},
+			}
 
-			pkg, err := resolver.ResolvePackage(context.Background(), pkgName, constraint)
+			err := resolver.ResolvePackage(context.Background(), constraint, npmPkg)
 
-			assert.Equal(t, tc.expectedPkg, pkg)
 			if tc.expectedErr == "" {
+				assert.Equal(t, tc.expectedNpmPkg, npmPkg)
 				assert.NoError(t, err)
 			} else {
 				assert.EqualError(t, err, tc.expectedErr)

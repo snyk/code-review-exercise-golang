@@ -34,30 +34,38 @@ func NewResolver(client PackageFetcher) Resolver {
 
 // PackageResolver resolves the metadata and dependencies of a given [Package],
 // based on its name and a version constraint.
-func (r Resolver) ResolvePackage(ctx context.Context, name string, constraint *semver.Constraints) (*Package, error) {
-	version, err := r.resolvePackageHighestVersion(ctx, name, constraint)
+func (r Resolver) ResolvePackage(ctx context.Context, constraint *semver.Constraints, npmPkg *NpmPackageVersion) error {
+	meta, err := r.client.FetchPackageMeta(ctx, npmPkg.Name)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("fetch package meta %s: %w", npmPkg.Name, err)
 	}
 
-	pkg, err := r.client.FetchPackage(ctx, name, version)
+	version, err := semverutil.ResolveHighestVersion(constraint, maps.Keys(meta.Versions))
 	if err != nil {
-		return nil, fmt.Errorf("fetch package %s/%s: %w", name, version, err)
+		return fmt.Errorf("resolve highest version: %w", err)
+	}
+	npmPkg.Version = version
+
+	pkg, err := r.client.FetchPackage(ctx, npmPkg.Name, version)
+	if err != nil {
+		return fmt.Errorf("fetch package %s/%s: %w", npmPkg.Name, version, err)
 	}
 
 	for depName, depConstraintStr := range pkg.Dependencies {
 		depConstraint, err := semver.NewConstraint(depConstraintStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid version constraint: %w", err)
+			return fmt.Errorf("invalid version constraint: %w", err)
 		}
 
-		pkg.Dependencies[depName], err = r.resolvePackageHighestVersion(ctx, depName, depConstraint)
-		if err != nil {
-			return nil, err
+		npmPkg.Dependencies[depName] = &NpmPackageVersion{
+			Name:         depName,
+			Dependencies: map[string]*NpmPackageVersion{},
 		}
+
+		r.ResolvePackage(ctx, depConstraint, npmPkg.Dependencies[depName]) //nolint:errcheck // best effort
 	}
 
-	return pkg, nil
+	return nil
 }
 
 func (r Resolver) resolvePackageHighestVersion(ctx context.Context, name string, constraint *semver.Constraints) (string, error) {

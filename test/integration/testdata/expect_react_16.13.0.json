@@ -1,8 +1,48 @@
 {
   "dependencies": {
-    "loose-envify": "1.4.0",
-    "object-assign": "4.1.1",
-    "prop-types": "15.8.1"
+    "loose-envify": {
+      "dependencies": {
+        "js-tokens": {
+          "dependencies": {},
+          "name": "js-tokens",
+          "version": "4.0.0"
+        }
+      },
+      "name": "loose-envify",
+      "version": "1.4.0"
+    },
+    "object-assign": {
+      "dependencies": {},
+      "name": "object-assign",
+      "version": "4.1.1"
+    },
+    "prop-types": {
+      "dependencies": {
+        "loose-envify": {
+          "dependencies": {
+            "js-tokens": {
+              "dependencies": {},
+              "name": "js-tokens",
+              "version": "4.0.0"
+            }
+          },
+          "name": "loose-envify",
+          "version": "1.4.0"
+        },
+        "object-assign": {
+          "dependencies": {},
+          "name": "object-assign",
+          "version": "4.1.1"
+        },
+        "react-is": {
+          "dependencies": {},
+          "name": "react-is",
+          "version": "16.13.1"
+        }
+      },
+      "name": "prop-types",
+      "version": "15.7.2"
+    }
   },
   "name": "react",
   "version": "16.13.0"
