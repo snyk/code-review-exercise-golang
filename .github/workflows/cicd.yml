@@ -5,6 +5,10 @@ on:
     branches: [ main ]
   push:
     branches: [ main ]
+  schedule:
+    # Re-run every 2 weeks on Sunday at midnight UTC to keep CI results fresh
+    - cron: "0 0 */14 * *"
+  workflow_dispatch:  # Allow manual re-runs from GitHub UI
 env:
   GO_VERSION: '1.24.0'
   GOLANGCI_LINT_VERSION: v1.64.5
