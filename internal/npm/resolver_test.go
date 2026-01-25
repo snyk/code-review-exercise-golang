@@ -21,9 +21,6 @@ func TestResolver_ResolvePackage(t *testing.T) {
 	require.NoError(t, err)
 	pkgName := "foo"
 
-	// suggestion: current tests do not cover cyclic dependencies or large dependency graphs
-	// add tests for cyclic and large dependency graphs
-
 	testCases := []struct {
 		name           string
 		setup          func(testing.TB) npm.PackageFetcher
@@ -53,6 +50,40 @@ func TestResolver_ResolvePackage(t *testing.T) {
 				Version:      "1.0.5",
 				Dependencies: map[string]*npm.NpmPackageVersion{},
 			},
+		},
+		{
+			name: "dependency listed in a package but meta is not found",
+			setup: func(tb testing.TB) npm.PackageFetcher {
+				tb.Helper()
+				fetcher := mocksnpm.NewMockPackageFetcher(gomock.NewController(t))
+				fetcher.EXPECT().FetchPackageMeta(gomock.Any(), "foo").Return(&npm.PackageMeta{
+					Name: "foo",
+					Versions: map[string]npm.Package{
+						"1.0.5": {Name: "foo", Version: "1.0.5"},
+					},
+				}, nil)
+				fetcher.EXPECT().FetchPackage(gomock.Any(), "foo", "1.0.5").Return(&npm.Package{
+					Name:         "foo",
+					Version:      "1.0.5",
+					Dependencies: map[string]string{"bar": "1.0.0"},
+				}, nil)
+				fetcher.EXPECT().FetchPackageMeta(gomock.Any(), "bar").Return(nil, npm.ErrPackageNotFound).AnyTimes()
+				return fetcher
+			},
+			// question: should the resolver fail if a dependency is missing?
+			// Currently it continues resolving other dependencies and returns the ones found
+			expectedNpmPkg: &npm.NpmPackageVersion{
+				Name:    "foo",
+				Version: "1.0.5",
+				Dependencies: map[string]*npm.NpmPackageVersion{
+					"bar": {
+						Name:         "bar",
+						Version:      "",
+						Dependencies: map[string]*npm.NpmPackageVersion{},
+					},
+				},
+			},
+			expectedErr: "",
 		},
 		{
 			name: "fetch meta failure for root package",
@@ -177,6 +208,44 @@ func TestResolver_ResolvePackage(t *testing.T) {
 					"baz": {
 						Name:         "baz",
 						Version:      "1.1.0",
+						Dependencies: map[string]*npm.NpmPackageVersion{},
+					},
+				},
+			},
+		},
+		{
+			name: "Dependency listed but no versions satisfy constraint",
+			setup: func(tb testing.TB) npm.PackageFetcher {
+				tb.Helper()
+				fetcher := mocksnpm.NewMockPackageFetcher(gomock.NewController(t))
+				fetcher.EXPECT().FetchPackageMeta(gomock.Any(), pkgName).Return(&npm.PackageMeta{
+					Name: pkgName,
+					Versions: map[string]npm.Package{
+						"1.0.5": {Name: pkgName, Version: "1.0.5"},
+					},
+				}, nil)
+				fetcher.EXPECT().FetchPackage(gomock.Any(), pkgName, "1.0.5").Return(&npm.Package{
+					Name:         pkgName,
+					Version:      "1.0.5",
+					Dependencies: map[string]string{"bar": "^2.0.0"},
+				}, nil)
+				fetcher.EXPECT().FetchPackageMeta(gomock.Any(), "bar").Return(&npm.PackageMeta{
+					Name: "bar",
+					Versions: map[string]npm.Package{
+						"1.0.0": {Name: "bar", Version: "1.0.0"},
+						"1.1.0": {Name: "bar", Version: "1.1.0"},
+						"1.5.0": {Name: "bar", Version: "1.5.0"},
+					},
+				}, nil)
+				return fetcher
+			},
+			expectedNpmPkg: &npm.NpmPackageVersion{
+				Name:    pkgName,
+				Version: "1.0.5",
+				Dependencies: map[string]*npm.NpmPackageVersion{
+					"bar": {
+						Name:         "bar",
+						Version:      "",
 						Dependencies: map[string]*npm.NpmPackageVersion{},
 					},
 				},
