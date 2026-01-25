@@ -3,6 +3,7 @@ package npm_test
 import (
 	"context"
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
@@ -226,4 +227,152 @@ func TestResolver_ResolvePackage_Cyclic(t *testing.T) {
 
 	require.Error(t, err)
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
+}
+
+// Test that ResolvePackage handles a long chain of dependencies.
+func TestResolver_ResolvePackage_LargeDependencyChain(t *testing.T) {
+	const depth = 50
+
+	constraint, err := semver.NewConstraint("1.0.5")
+	require.NoError(t, err)
+
+	fetcher := mocksnpm.NewMockPackageFetcher(gomock.NewController(t))
+	fetcher.EXPECT().FetchPackageMeta(gomock.Any(), "foo").Return(&npm.PackageMeta{
+		Name: "foo",
+		Versions: map[string]npm.Package{
+			"1.0.5": {Name: "foo", Version: "1.0.5"},
+		},
+	}, nil).AnyTimes()
+	fetcher.EXPECT().FetchPackage(gomock.Any(), "foo", "1.0.5").Return(&npm.Package{
+		Name:         "foo",
+		Version:      "1.0.5",
+		Dependencies: map[string]string{"1": "1.0.0"},
+	}, nil).AnyTimes()
+
+	for i := 1; i < depth; i++ {
+		name := strconv.Itoa(i)
+
+		fetcher.EXPECT().FetchPackageMeta(gomock.Any(), name).Return(&npm.PackageMeta{
+			Name: name,
+			Versions: map[string]npm.Package{
+				"1.0.0": {Name: name, Version: "1.0.0"},
+			},
+		}, nil).AnyTimes()
+		fetcher.EXPECT().FetchPackage(gomock.Any(), name, "1.0.0").Return(&npm.Package{
+			Name:         name,
+			Version:      "1.0.0",
+			Dependencies: map[string]string{strconv.Itoa(i + 1): "1.0.0"},
+		}, nil).AnyTimes()
+	}
+
+	//Add last depency that has no other dependencies
+	name := strconv.Itoa(depth)
+
+	fetcher.EXPECT().FetchPackageMeta(gomock.Any(), name).Return(&npm.PackageMeta{
+		Name: name,
+		Versions: map[string]npm.Package{
+			"1.0.0": {Name: name, Version: "1.0.0"},
+		},
+	}, nil).AnyTimes()
+	fetcher.EXPECT().FetchPackage(gomock.Any(), name, "1.0.0").Return(&npm.Package{
+		Name:         name,
+		Version:      "1.0.0",
+		Dependencies: map[string]string{},
+	}, nil).AnyTimes()
+
+	resolver := npm.NewResolver(fetcher)
+	npmPkg := &npm.NpmPackageVersion{
+		Name:         "foo",
+		Dependencies: map[string]*npm.NpmPackageVersion{},
+	}
+
+	err = resolver.ResolvePackage(context.Background(), constraint, npmPkg)
+
+	assert.Equal(t, "foo", npmPkg.Name)
+	assert.NoError(t, err)
+
+	// Check the dependency chain
+	current := npmPkg
+	for i := 1; i <= depth && current != nil; i++ {
+		dep := strconv.Itoa(i)
+		require.Contains(t, current.Dependencies, dep)
+		current = current.Dependencies[dep]
+	}
+}
+
+// Test that ResolvePackage handles a wide chain of dependencies.
+func TestResolver_ResolvePackage_WideDependencyChain(t *testing.T) {
+
+	constraint, err := semver.NewConstraint("1.0.5")
+	require.NoError(t, err)
+
+	fetcher := mocksnpm.NewMockPackageFetcher(gomock.NewController(t))
+	fetcher.EXPECT().FetchPackageMeta(gomock.Any(), "foo").Return(&npm.PackageMeta{
+		Name: "foo",
+		Versions: map[string]npm.Package{
+			"1.0.5": {Name: "foo", Version: "1.0.5"},
+		},
+	}, nil).AnyTimes()
+	fetcher.EXPECT().FetchPackage(gomock.Any(), "foo", "1.0.5").Return(&npm.Package{
+		Name:         "foo",
+		Version:      "1.0.5",
+		Dependencies: map[string]string{"1": "1.0.0", "2": "1.0.0", "3": "1.0.0", "4": "1.0.0"},
+	}, nil).AnyTimes()
+
+	// Create 4 main children each with 4 dependencies
+	children := []string{"1", "2", "3", "4"}
+	for _, name := range children {
+		fetcher.EXPECT().FetchPackageMeta(gomock.Any(), name).Return(&npm.PackageMeta{
+			Name: name,
+			Versions: map[string]npm.Package{
+				"1.0.0": {Name: name, Version: "1.0.0"},
+			},
+		}, nil).AnyTimes()
+		fetcher.EXPECT().FetchPackage(gomock.Any(), name, "1.0.0").Return(&npm.Package{
+			Name:    name,
+			Version: "1.0.0",
+			Dependencies: map[string]string{
+				name + "a": "1.0.0",
+				name + "b": "1.0.0",
+				name + "c": "1.0.0",
+				name + "d": "1.0.0",
+			},
+		}, nil).AnyTimes()
+	}
+
+	// Each child has 4 dependencies with no further dependencies
+	edges := []string{"1a", "1b", "1c", "1d", "2a", "2b", "2c", "2d", "3a", "3b", "3c", "3d",
+		"4a", "4b", "4c", "4d"}
+	for _, name := range edges {
+		fetcher.EXPECT().FetchPackageMeta(gomock.Any(), name).Return(&npm.PackageMeta{
+			Name: name,
+			Versions: map[string]npm.Package{
+				"1.0.0": {Name: name, Version: "1.0.0"},
+			},
+		}, nil).AnyTimes()
+		fetcher.EXPECT().FetchPackage(gomock.Any(), name, "1.0.0").Return(&npm.Package{
+			Name:         name,
+			Version:      "1.0.0",
+			Dependencies: map[string]string{},
+		}, nil).AnyTimes()
+	}
+
+	resolver := npm.NewResolver(fetcher)
+	npmPkg := &npm.NpmPackageVersion{
+		Name:         "foo",
+		Dependencies: map[string]*npm.NpmPackageVersion{},
+	}
+
+	err = resolver.ResolvePackage(context.Background(), constraint, npmPkg)
+
+	assert.Equal(t, "foo", npmPkg.Name)
+	assert.NoError(t, err)
+
+	// Check that there are 4 main dependencies
+	assert.Len(t, npmPkg.Dependencies, 4)
+
+	// Check that each main dependency has 4 dependencies
+	for _, v := range npmPkg.Dependencies {
+		assert.Len(t, v.Dependencies, 4)
+	}
 }
