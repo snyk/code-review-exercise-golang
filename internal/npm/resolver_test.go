@@ -31,6 +31,30 @@ func TestResolver_ResolvePackage(t *testing.T) {
 		expectedErr    string
 	}{
 		{
+			name: "empty dependency versions for root package",
+			setup: func(tb testing.TB) npm.PackageFetcher {
+				tb.Helper()
+				fetcher := mocksnpm.NewMockPackageFetcher(gomock.NewController(t))
+				fetcher.EXPECT().FetchPackageMeta(gomock.Any(), pkgName).Return(&npm.PackageMeta{
+					Name: pkgName,
+					Versions: map[string]npm.Package{
+						"1.0.5": {Name: pkgName, Version: "1.0.5"},
+					},
+				}, nil)
+				fetcher.EXPECT().FetchPackage(gomock.Any(), pkgName, "1.0.5").Return(&npm.Package{
+					Name:         pkgName,
+					Version:      "1.0.5",
+					Dependencies: map[string]string{},
+				}, nil)
+				return fetcher
+			},
+			expectedNpmPkg: &npm.NpmPackageVersion{
+				Name:         pkgName,
+				Version:      "1.0.5",
+				Dependencies: map[string]*npm.NpmPackageVersion{},
+			},
+		},
+		{
 			name: "fetch meta failure for root package",
 			setup: func(tb testing.TB) npm.PackageFetcher {
 				tb.Helper()
@@ -114,7 +138,7 @@ func TestResolver_ResolvePackage(t *testing.T) {
 					Dependencies: map[string]string{"bar": "^2.0.1", "baz": "1.x"},
 				}, nil)
 				fetcher.EXPECT().FetchPackageMeta(gomock.Any(), "bar").Return(&npm.PackageMeta{
-					Name: pkgName,
+					Name: "bar",
 					Versions: map[string]npm.Package{
 						"1.0.0": {Name: "bar", Version: "1.0.0"},
 						"2.0.0": {Name: "bar", Version: "2.0.0"},
@@ -127,7 +151,7 @@ func TestResolver_ResolvePackage(t *testing.T) {
 					Version: "2.0.1",
 				}, nil)
 				fetcher.EXPECT().FetchPackageMeta(gomock.Any(), "baz").Return(&npm.PackageMeta{
-					Name: pkgName,
+					Name: "baz",
 					Versions: map[string]npm.Package{
 						"1.0.0": {Name: "baz", Version: "1.0.0"},
 						"1.0.1": {Name: "baz", Version: "1.0.1"},
