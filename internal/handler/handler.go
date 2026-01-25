@@ -47,6 +47,9 @@ func PackageVersion(logHandler slog.Handler, resolver PackageResolver) http.Hand
 			return
 		}
 
+		// question: Should all reolvePackage errors be treated as internal server errors?
+		// Some errors could be due to client input or being unable to reach npm registry
+		// which could be handled better than returning a generic 500 error
 		if err != nil {
 			log.Error("deps resolution error", slog.String("error", err.Error()))
 			writeError(w, log, http.StatusInternalServerError, "internal server error")

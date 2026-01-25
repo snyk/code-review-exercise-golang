@@ -1,9 +1,14 @@
 package npm
 
 type (
+	// suggestion: NpmPackageVersion sounds like a raw data type from the npm registry
+	// consider renaming NpmPackageVersion to make it known this type is constructed
+	// by the resolver rather than returned by the npm client e.g. ResolvedPackageVersion
 	NpmPackageVersion struct {
-		Name         string                        `json:"name"`
-		Version      string                        `json:"version"`
+		Name    string `json:"name"`
+		Version string `json:"version"`
+		// question: dependency is stored in a map that has random access order
+		// is dependency ordering important for the users of this API?
 		Dependencies map[string]*NpmPackageVersion `json:"dependencies"`
 	}
 

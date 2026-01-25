@@ -26,6 +26,10 @@ func ResolveHighestVersion(constraint *semver.Constraints, versions iter.Seq[str
 			highest = v
 		}
 	}
+	// question: should we fail if any version strings are invalid?
+	// If a valid highest version was found, we continue parsing all versions
+	// and any parsing error causes the function to return an error even though
+	// we have the highest version
 
 	if errs != nil {
 		return "", errs

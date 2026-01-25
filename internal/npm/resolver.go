@@ -32,6 +32,14 @@ func NewResolver(client PackageFetcher) Resolver {
 	return Resolver{client: client}
 }
 
+// suggestion: update the comment to document its recursive nature and any assumptions and
+// edge cases like no cycle detection and unordered dependencies. This helps future maintainers
+// understand the function's behavior and limitations.
+
+// suggestion: consider a more descriptive name for ResolvePackage
+// The function performs a recursive search and builds a dependency tree
+// the name could reflect that behavior more clearly.
+
 // PackageResolver resolves the metadata and dependencies of a given [Package],
 // based on its name and a version constraint.
 func (r Resolver) ResolvePackage(ctx context.Context, constraint *semver.Constraints, npmPkg *NpmPackageVersion) error {
@@ -51,6 +59,8 @@ func (r Resolver) ResolvePackage(ctx context.Context, constraint *semver.Constra
 		return fmt.Errorf("fetch package %s/%s: %w", npmPkg.Name, version, err)
 	}
 
+	// issue: npm dependencies can contain cycles and without detection this recursive
+	// approach could lead to infinite recursion or stack overflow crash
 	for depName, depConstraintStr := range pkg.Dependencies {
 		depConstraint, err := semver.NewConstraint(depConstraintStr)
 		if err != nil {
@@ -62,6 +72,9 @@ func (r Resolver) ResolvePackage(ctx context.Context, constraint *semver.Constra
 			Dependencies: map[string]*NpmPackageVersion{},
 		}
 
+		// suggestion: For large problems DFS may lead to stack overflows, to improve performance
+		// and reliability consider using an approach with a cache of resolved dependencies to avoid
+		// repeated work
 		r.ResolvePackage(ctx, depConstraint, npmPkg.Dependencies[depName]) //nolint:errcheck // best effort
 	}
 

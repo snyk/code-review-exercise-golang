@@ -19,6 +19,9 @@ func TestResolver_ResolvePackage(t *testing.T) {
 	require.NoError(t, err)
 	pkgName := "foo"
 
+	// suggestion: current tests do not cover cyclic dependencies or large dependency graphs
+	// add tests for cyclic and large dependency graphs
+
 	testCases := []struct {
 		name           string
 		setup          func(testing.TB) npm.PackageFetcher
