@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/stretchr/testify/assert"
@@ -176,4 +177,53 @@ func TestResolver_ResolvePackage(t *testing.T) {
 			}
 		})
 	}
+}
+
+// This test demonstrates that ResolvePackage does not currently
+// handle cyclic dependencies and does not respect context cancellation.
+// The resolver is expected to run indefinitely until the context expires.
+func TestResolver_ResolvePackage_Cyclic(t *testing.T) {
+	// TODO remove skip once cycles and cancellation are handled
+	t.Skip("ResolvePackage does not currently handle cyclic dependencies; test would hang until cycle detection is implemented or context cancellation is respected")
+
+	constraint, err := semver.NewConstraint("^1.0.5")
+	require.NoError(t, err)
+
+	fetcher := mocksnpm.NewMockPackageFetcher(gomock.NewController(t))
+	fetcher.EXPECT().FetchPackageMeta(gomock.Any(), "foo").Return(&npm.PackageMeta{
+		Name: "foo",
+		Versions: map[string]npm.Package{
+			"1.0.5": {Name: "foo", Version: "1.0.5"},
+		},
+	}, nil).AnyTimes()
+	fetcher.EXPECT().FetchPackage(gomock.Any(), "foo", "1.0.5").Return(&npm.Package{
+		Name:         "foo",
+		Version:      "1.0.5",
+		Dependencies: map[string]string{"bar": "1.0.0"},
+	}, nil).AnyTimes()
+	fetcher.EXPECT().FetchPackageMeta(gomock.Any(), "bar").Return(&npm.PackageMeta{
+		Name: "bar",
+		Versions: map[string]npm.Package{
+			"1.0.0": {Name: "bar", Version: "1.0.0"},
+		},
+	}, nil).AnyTimes()
+	fetcher.EXPECT().FetchPackage(gomock.Any(), "bar", "1.0.0").Return(&npm.Package{
+		Name:         "bar",
+		Version:      "1.0.0",
+		Dependencies: map[string]string{"foo": "1.0.5"},
+	}, nil).AnyTimes()
+
+	resolver := npm.NewResolver(fetcher)
+	npmPkg := &npm.NpmPackageVersion{
+		Name:         "foo",
+		Dependencies: map[string]*npm.NpmPackageVersion{},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err = resolver.ResolvePackage(ctx, constraint, npmPkg)
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
 }
