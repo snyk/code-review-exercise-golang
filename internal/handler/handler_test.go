@@ -156,9 +156,10 @@ func TestPackageVersion(t *testing.T) {
 				resolver.EXPECT().ResolvePackage(gomock.Any(), gomock.Any(), gomock.Any()).
 					DoAndReturn(func(_ context.Context, _ *semver.Constraints, npmPkg *npm.NpmPackageVersion) error {
 						npmPkg.Version = "1.0.1"
+						npmPkg.Status = npm.StatusResolved
 						npmPkg.Dependencies = map[string]*npm.NpmPackageVersion{
-							"bar": {Name: "bar", Version: "0.1.0"},
-							"baz": {Name: "baz", Version: "2.0.1"},
+							"bar": {Name: "bar", Version: "0.1.0", Status: npm.StatusResolved},
+							"baz": {Name: "baz", Version: "2.0.1", Status: npm.StatusResolved},
 						}
 						return nil
 					})
@@ -167,7 +168,7 @@ func TestPackageVersion(t *testing.T) {
 			},
 			expectedStatusCode: http.StatusOK,
 			expectedBody: "{\"name\":\"foo\",\"version\":\"1.0.1\",\"dependencies\"" +
-				":{\"bar\":{\"name\":\"bar\",\"version\":\"0.1.0\",\"dependencies\":null},\"baz\":{\"name\":\"baz\",\"version\":\"2.0.1\",\"dependencies\":null}}}\n",
+				":{\"bar\":{\"name\":\"bar\",\"version\":\"0.1.0\",\"dependencies\":null,\"status\":\"resolved\"},\"baz\":{\"name\":\"baz\",\"version\":\"2.0.1\",\"dependencies\":null,\"status\":\"resolved\"}},\"status\":\"resolved\"}\n",
 		},
 	}
 
