@@ -5,7 +5,6 @@ import (
 	"errors"
 	"strconv"
 	"testing"
-	"time"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/stretchr/testify/assert"
@@ -273,13 +272,9 @@ func TestResolver_ResolvePackage(t *testing.T) {
 	}
 }
 
-// This test demonstrates that ResolvePackage does not currently
-// handle cyclic dependencies and does not respect context cancellation.
-// The resolver is expected to run indefinitely until the context expires.
+// This test demonstrates that ResolvePackage correctly handles cyclic dependencies
+// by tracking visited packages
 func TestResolver_ResolvePackage_Cyclic(t *testing.T) {
-	// TODO remove skip once cycles and cancellation are handled
-	t.Skip("ResolvePackage does not currently handle cyclic dependencies; test would hang until cycle detection is implemented or context cancellation is respected")
-
 	constraint, err := semver.NewConstraint("^1.0.5")
 	require.NoError(t, err)
 
@@ -313,13 +308,14 @@ func TestResolver_ResolvePackage_Cyclic(t *testing.T) {
 		Dependencies: map[string]*npm.NpmPackageVersion{},
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
+	err = resolver.ResolvePackage(context.Background(), constraint, npmPkg)
+	require.NoError(t, err)
 
-	err = resolver.ResolvePackage(ctx, constraint, npmPkg)
+	assert.Equal(t, "foo", npmPkg.Name)
+	assert.Equal(t, "1.0.5", npmPkg.Version)
 
-	require.Error(t, err)
-	assert.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Contains(t, npmPkg.Dependencies, "bar")
+	assert.Equal(t, "1.0.0", npmPkg.Dependencies["bar"].Version)
 }
 
 // Test that ResolvePackage handles a long chain of dependencies.

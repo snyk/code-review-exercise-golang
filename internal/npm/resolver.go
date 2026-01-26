@@ -43,6 +43,11 @@ func NewResolver(client PackageFetcher) Resolver {
 // PackageResolver resolves the metadata and dependencies of a given [Package],
 // based on its name and a version constraint.
 func (r Resolver) ResolvePackage(ctx context.Context, constraint *semver.Constraints, npmPkg *NpmPackageVersion) error {
+	visited := make(map[string]bool)
+	return r.resolvePackageRecursive(ctx, constraint, npmPkg, visited)
+}
+
+func (r Resolver) resolvePackageRecursive(ctx context.Context, constraint *semver.Constraints, npmPkg *NpmPackageVersion, visited map[string]bool) error {
 	meta, err := r.client.FetchPackageMeta(ctx, npmPkg.Name)
 	if err != nil {
 		return fmt.Errorf("fetch package meta %s: %w", npmPkg.Name, err)
@@ -53,6 +58,13 @@ func (r Resolver) ResolvePackage(ctx context.Context, constraint *semver.Constra
 		return fmt.Errorf("resolve highest version: %w", err)
 	}
 	npmPkg.Version = version
+
+	key := fmt.Sprintf("%s@%s", npmPkg.Name, version)
+	if _, ok := visited[key]; ok {
+		return nil
+	}
+	visited[key] = true
+	defer delete(visited, key)
 
 	pkg, err := r.client.FetchPackage(ctx, npmPkg.Name, version)
 	if err != nil {
@@ -75,7 +87,7 @@ func (r Resolver) ResolvePackage(ctx context.Context, constraint *semver.Constra
 		// suggestion: For large problems DFS may lead to stack overflows, to improve performance
 		// and reliability consider using an approach with a cache of resolved dependencies to avoid
 		// repeated work
-		r.ResolvePackage(ctx, depConstraint, npmPkg.Dependencies[depName]) //nolint:errcheck // best effort
+		r.resolvePackageRecursive(ctx, depConstraint, npmPkg.Dependencies[depName], visited) //nolint:errcheck // best effort
 	}
 
 	return nil
