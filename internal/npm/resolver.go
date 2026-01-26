@@ -94,6 +94,12 @@ func (r Resolver) ResolvePackage(ctx context.Context, constraint *semver.Constra
 
 		depConstraint, err := semver.NewConstraint(depConstraintStr)
 		if err != nil {
+			npmPkg.Dependencies[depName] = &NpmPackageVersion{
+				Name:         depName,
+				Dependencies: map[string]*NpmPackageVersion{},
+				Status:       StatusFailed,
+				Error:        err.Error(),
+			}
 			return fmt.Errorf("invalid version constraint: %w", err)
 		}
 
