@@ -275,6 +275,7 @@ func TestResolver_ResolvePackage(t *testing.T) {
 				assert.NoError(t, err)
 			} else {
 				assert.EqualError(t, err, tc.expectedErr)
+				assert.Equal(t, npmPkg.Error, tc.expectedErr)
 			}
 		})
 	}
@@ -319,11 +320,23 @@ func TestResolver_ResolvePackage_Cyclic(t *testing.T) {
 	err = resolver.ResolvePackage(context.Background(), constraint, npmPkg)
 	require.NoError(t, err)
 
+	bar := npmPkg.Dependencies["bar"]
+	foo := bar.Dependencies["foo"]
+
 	assert.Equal(t, "foo", npmPkg.Name)
 	assert.Equal(t, "1.0.5", npmPkg.Version)
+	assert.Equal(t, npm.StatusResolved, npmPkg.Status)
+	assert.Empty(t, npmPkg.Error)
 
-	assert.Contains(t, npmPkg.Dependencies, "bar")
-	assert.Equal(t, "1.0.0", npmPkg.Dependencies["bar"].Version)
+	assert.Equal(t, "bar", bar.Name)
+	assert.Equal(t, "1.0.0", bar.Version)
+	assert.Equal(t, npm.StatusResolved, bar.Status)
+	assert.Empty(t, bar.Error)
+
+	assert.Equal(t, "foo", foo.Name)
+	assert.Equal(t, "1.0.5", foo.Version)
+	assert.Equal(t, npm.StatusCyclic, foo.Status)
+	assert.Empty(t, foo.Error)
 }
 
 // Test that ResolvePackage handles a long chain of dependencies.
@@ -469,7 +482,43 @@ func TestResolver_ResolvePackage_WideDependencyChain(t *testing.T) {
 	assert.Len(t, npmPkg.Dependencies, 4)
 
 	// Check that each main dependency has 4 dependencies
-	for _, v := range npmPkg.Dependencies {
-		assert.Len(t, v.Dependencies, 4)
+	for _, child := range npmPkg.Dependencies {
+		assert.Len(t, child.Dependencies, 4)
+		for _, leaf := range child.Dependencies {
+			assert.Equal(t, "1.0.0", leaf.Version)
+			assert.Equal(t, npm.StatusResolved, leaf.Status)
+			assert.Empty(t, leaf.Error)
+		}
 	}
+}
+
+func TestResolver_ResolvePackage_ContextCancelled(t *testing.T) {
+	constraint, err := semver.NewConstraint("^1.0.5")
+	require.NoError(t, err)
+
+	fetcher := mocksnpm.NewMockPackageFetcher(gomock.NewController(t))
+	resolver := npm.NewResolver(fetcher)
+
+	npmPkg := &npm.NpmPackageVersion{
+		Name:         "foo",
+		Dependencies: map[string]*npm.NpmPackageVersion{},
+	}
+
+	fetcher.EXPECT().FetchPackageMeta(gomock.Any(), "foo").DoAndReturn(func(ctx context.Context, _ string) (*npm.PackageMeta, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	done := make(chan error)
+	go func() {
+		done <- resolver.ResolvePackage(ctx, constraint, npmPkg)
+	}()
+	cancel()
+	err = <-done
+
+	require.Error(t, err)
+	assert.Equal(t, npm.StatusFailed, npmPkg.Status)
+	assert.Contains(t, npmPkg.Error, "context canceled")
 }
