@@ -73,3 +73,31 @@ func TestPackageNameVersionEndpoint(t *testing.T) {
 
 	assert.Equal(t, string(expectedBody), string(body))
 }
+
+func TestPackageNotFound(t *testing.T) {
+	ctx := context.Background()
+	url := fmt.Sprintf("http://%s/package/packagenotfound/0.0.1", appAddr)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	require.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+}
+
+func TestPackageInvalidVersion(t *testing.T) {
+	ctx := context.Background()
+	url := fmt.Sprintf("http://%s/package/react/invalid-version", appAddr)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	require.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
