@@ -48,6 +48,7 @@ func TestResolver_ResolvePackage(t *testing.T) {
 				Name:         pkgName,
 				Version:      "1.0.5",
 				Dependencies: map[string]*npm.NpmPackageVersion{},
+				Status:       npm.StatusResolved,
 			},
 		},
 		{
@@ -69,8 +70,7 @@ func TestResolver_ResolvePackage(t *testing.T) {
 				fetcher.EXPECT().FetchPackageMeta(gomock.Any(), "bar").Return(nil, npm.ErrPackageNotFound).AnyTimes()
 				return fetcher
 			},
-			// question: should the resolver fail if a dependency is missing?
-			// Currently it continues resolving other dependencies and returns the ones found
+
 			expectedNpmPkg: &npm.NpmPackageVersion{
 				Name:    "foo",
 				Version: "1.0.5",
@@ -79,10 +79,12 @@ func TestResolver_ResolvePackage(t *testing.T) {
 						Name:         "bar",
 						Version:      "",
 						Dependencies: map[string]*npm.NpmPackageVersion{},
+						Status:       npm.StatusFailed,
+						Error:        "package not found",
 					},
 				},
+				Status: npm.StatusResolved,
 			},
-			expectedErr: "",
 		},
 		{
 			name: "fetch meta failure for root package",
@@ -203,13 +205,16 @@ func TestResolver_ResolvePackage(t *testing.T) {
 						Name:         "bar",
 						Version:      "2.0.1",
 						Dependencies: map[string]*npm.NpmPackageVersion{},
+						Status:       npm.StatusResolved,
 					},
 					"baz": {
 						Name:         "baz",
 						Version:      "1.1.0",
 						Dependencies: map[string]*npm.NpmPackageVersion{},
+						Status:       npm.StatusResolved,
 					},
 				},
+				Status: npm.StatusResolved,
 			},
 		},
 		{
@@ -246,8 +251,11 @@ func TestResolver_ResolvePackage(t *testing.T) {
 						Name:         "bar",
 						Version:      "",
 						Dependencies: map[string]*npm.NpmPackageVersion{},
+						Status:       npm.StatusFailed,
+						Error:        "no compatible versions found",
 					},
 				},
+				Status: npm.StatusResolved,
 			},
 		},
 	}
