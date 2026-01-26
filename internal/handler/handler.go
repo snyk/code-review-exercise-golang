@@ -29,6 +29,19 @@ func PackageVersion(logHandler slog.Handler, resolver PackageResolver) http.Hand
 		ctx := req.Context()
 		pkgName, pkgVersion := req.PathValue("packageName"), req.PathValue("packageVersion")
 
+		if pkgName == "" && pkgVersion == "" {
+			writeError(w, log, http.StatusBadRequest, "invalid request path")
+			return
+		}
+		if pkgVersion == "" {
+			writeError(w, log, http.StatusBadRequest, "missing version")
+			return
+		}
+		if pkgName == "" {
+			writeError(w, log, http.StatusBadRequest, "missing package name")
+			return
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 
 		constraint, err := semver.NewConstraint(pkgVersion)
