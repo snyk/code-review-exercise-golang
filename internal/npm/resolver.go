@@ -47,11 +47,15 @@ func NewResolver(client PackageFetcher) Resolver {
 func (r Resolver) ResolvePackage(ctx context.Context, constraint *semver.Constraints, npmPkg *NpmPackageVersion) error {
 	meta, err := r.client.FetchPackageMeta(ctx, npmPkg.Name)
 	if err != nil {
+		npmPkg.Status = StatusFailed
+		npmPkg.Error = err.Error()
 		return fmt.Errorf("fetch package meta %s: %w", npmPkg.Name, err)
 	}
 
 	version, err := semverutil.ResolveHighestVersion(constraint, maps.Keys(meta.Versions))
 	if err != nil {
+		npmPkg.Status = StatusFailed
+		npmPkg.Error = err.Error()
 		return fmt.Errorf("resolve highest version: %w", err)
 	}
 	npmPkg.Version = version
@@ -61,25 +65,35 @@ func (r Resolver) ResolvePackage(ctx context.Context, constraint *semver.Constra
 	// without expanding its dependencies to avoid infinite recursion
 	key := fmt.Sprintf("%s@%s", npmPkg.Name, version)
 	if cached, ok := r.cache[key]; ok {
-		// question: how do we want the nodes in the cycle to appear in the final dependency tree?
-		// First occurrence of package in the cycle will have its dependencies expanded but
-		// following occurrences will reference the cached version without any dependencies.
-		// We could consider adding a flag to indicate a cyclic dependency was detected.
 		*npmPkg = *cached
+		npmPkg.Status = StatusCyclic
 		return nil
 	}
 
 	pkg, err := r.client.FetchPackage(ctx, npmPkg.Name, version)
 	if err != nil {
+		npmPkg.Status = StatusFailed
+		npmPkg.Error = err.Error()
 		return fmt.Errorf("fetch package %s/%s: %w", npmPkg.Name, version, err)
 	}
 
+	npmPkg.Status = StatusResolved
+	r.cache[key] = npmPkg
+
 	for depName, depConstraintStr := range pkg.Dependencies {
+		// Check if context was cancelled before processing each dependency
+		if err := ctx.Err(); err != nil {
+			npmPkg.Dependencies[depName] = &NpmPackageVersion{
+				Name:         depName,
+				Dependencies: map[string]*NpmPackageVersion{},
+				Status:       StatusFailed,
+				Error:        err.Error(),
+			}
+			continue
+		}
+
 		depConstraint, err := semver.NewConstraint(depConstraintStr)
 		if err != nil {
-			// question: it is not clear to the user that some dependencies were not resolved
-			// due to invalid version constraints. Should we have this represented somehow in the final tree?
-			// Currently a failed resolution and a cyclic dependency are not distinguishable in the final tree.
 			return fmt.Errorf("invalid version constraint: %w", err)
 		}
 
@@ -88,10 +102,9 @@ func (r Resolver) ResolvePackage(ctx context.Context, constraint *semver.Constra
 			Dependencies: map[string]*NpmPackageVersion{},
 		}
 
-		r.cache[key] = npmPkg
-
-		// suggestion: error handling here needs to be improved to distinguish between different failure cases
-		r.ResolvePackage(ctx, depConstraint, npmPkg.Dependencies[depName]) //nolint:errcheck // best effort
+		// Any errors from resolving are swallowed as this is best effort and can be found
+		// in the NpmPackageVersions Status/Error fields.
+		r.ResolvePackage(ctx, depConstraint, npmPkg.Dependencies[depName]) //nolint:errcheck  // best effort
 	}
 
 	return nil
