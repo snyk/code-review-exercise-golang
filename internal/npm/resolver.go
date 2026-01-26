@@ -24,30 +24,27 @@ type (
 	// Resolver resolves an NPM package, as well as its dependencies.
 	Resolver struct {
 		client PackageFetcher
+		cache  map[string]*NpmPackageVersion
 	}
 )
 
 // NewResolver constructs a [Resolver] with the provider [PackageFetcher] client.
 func NewResolver(client PackageFetcher) Resolver {
-	return Resolver{client: client}
+	return Resolver{client: client, cache: map[string]*NpmPackageVersion{}}
 }
-
-// suggestion: update the comment to document its recursive nature and any assumptions and
-// edge cases like no cycle detection and unordered dependencies. This helps future maintainers
-// understand the function's behavior and limitations.
 
 // suggestion: consider a more descriptive name for ResolvePackage
 // The function performs a recursive search and builds a dependency tree
 // the name could reflect that behavior more clearly.
 
-// PackageResolver resolves the metadata and dependencies of a given [Package],
-// based on its name and a version constraint.
+// ResolvePackage resolves the highest matching version of an NPM package
+// for the given version constraint and recursively builds its dependency tree.
+// An internal cache is used so we can reuse already resolved packages and detect
+// cycles to prevent infinite recursion.
+//
+// This is best effort, failures in resolving individual dependencies do not stop
+// resolution of the parent package.
 func (r Resolver) ResolvePackage(ctx context.Context, constraint *semver.Constraints, npmPkg *NpmPackageVersion) error {
-	visited := make(map[string]bool)
-	return r.resolvePackageRecursive(ctx, constraint, npmPkg, visited)
-}
-
-func (r Resolver) resolvePackageRecursive(ctx context.Context, constraint *semver.Constraints, npmPkg *NpmPackageVersion, visited map[string]bool) error {
 	meta, err := r.client.FetchPackageMeta(ctx, npmPkg.Name)
 	if err != nil {
 		return fmt.Errorf("fetch package meta %s: %w", npmPkg.Name, err)
@@ -59,20 +56,20 @@ func (r Resolver) resolvePackageRecursive(ctx context.Context, constraint *semve
 	}
 	npmPkg.Version = version
 
+	// Cyclic dependencies are detected via the cache.
+	// We reuse the already resolved package version in the cache
+	// without expanding its dependencies to avoid infinite recursion
 	key := fmt.Sprintf("%s@%s", npmPkg.Name, version)
-	if _, ok := visited[key]; ok {
+	if cached, ok := r.cache[key]; ok {
+		*npmPkg = *cached
 		return nil
 	}
-	visited[key] = true
-	defer delete(visited, key)
 
 	pkg, err := r.client.FetchPackage(ctx, npmPkg.Name, version)
 	if err != nil {
 		return fmt.Errorf("fetch package %s/%s: %w", npmPkg.Name, version, err)
 	}
 
-	// issue: npm dependencies can contain cycles and without detection this recursive
-	// approach could lead to infinite recursion or stack overflow crash
 	for depName, depConstraintStr := range pkg.Dependencies {
 		depConstraint, err := semver.NewConstraint(depConstraintStr)
 		if err != nil {
@@ -84,25 +81,10 @@ func (r Resolver) resolvePackageRecursive(ctx context.Context, constraint *semve
 			Dependencies: map[string]*NpmPackageVersion{},
 		}
 
-		// suggestion: For large problems DFS may lead to stack overflows, to improve performance
-		// and reliability consider using an approach with a cache of resolved dependencies to avoid
-		// repeated work
-		r.resolvePackageRecursive(ctx, depConstraint, npmPkg.Dependencies[depName], visited) //nolint:errcheck // best effort
+		r.cache[key] = npmPkg
+
+		r.ResolvePackage(ctx, depConstraint, npmPkg.Dependencies[depName]) //nolint:errcheck // best effort
 	}
 
 	return nil
-}
-
-func (r Resolver) resolvePackageHighestVersion(ctx context.Context, name string, constraint *semver.Constraints) (string, error) {
-	meta, err := r.client.FetchPackageMeta(ctx, name)
-	if err != nil {
-		return "", fmt.Errorf("fetch package meta %s: %w", name, err)
-	}
-
-	version, err := semverutil.ResolveHighestVersion(constraint, maps.Keys(meta.Versions))
-	if err != nil {
-		return "", fmt.Errorf("resolve highest version: %w", err)
-	}
-
-	return version, nil
 }
