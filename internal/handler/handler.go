@@ -27,6 +27,10 @@ func PackageVersion(logHandler slog.Handler, resolver PackageResolver) http.Hand
 
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
+
+		// suggestion: consider validating and santising package name and version
+		// inputs to prevent potential security issues like injection attacks.
+
 		pkgName, pkgVersion := req.PathValue("packageName"), req.PathValue("packageVersion")
 
 		if pkgName == "" && pkgVersion == "" {
