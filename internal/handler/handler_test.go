@@ -66,8 +66,7 @@ func TestPackageVersion(t *testing.T) {
 				return req, mockshandler.NewMockPackageResolver(gomock.NewController(t))
 			},
 			expectedStatusCode: http.StatusBadRequest,
-			// TODO : incorrect error message reference to version but should be "missing package name"
-			expectedBody: "{\"error\":\"missing package name\"}\n",
+			expectedBody:       "{\"error\":\"missing package name\"}\n",
 		},
 		{
 			name: "malformed url with trailing slash",
