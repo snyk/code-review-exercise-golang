@@ -48,15 +48,15 @@ func (r Resolver) ResolvePackage(ctx context.Context, constraint *semver.Constra
 	meta, err := r.client.FetchPackageMeta(ctx, npmPkg.Name)
 	if err != nil {
 		npmPkg.Status = StatusFailed
-		npmPkg.Error = err.Error()
-		return fmt.Errorf("fetch package meta %s: %w", npmPkg.Name, err)
+		npmPkg.Error = fmt.Sprintf("fetch package meta %s: %v", npmPkg.Name, err)
+		return fmt.Errorf("fetch package meta %s: %v", npmPkg.Name, err)
 	}
 
 	version, err := semverutil.ResolveHighestVersion(constraint, maps.Keys(meta.Versions))
 	if err != nil {
 		npmPkg.Status = StatusFailed
-		npmPkg.Error = err.Error()
-		return fmt.Errorf("resolve highest version: %w", err)
+		npmPkg.Error = fmt.Sprintf("resolve highest version: %v", err)
+		return fmt.Errorf("resolve highest version: %v", err)
 	}
 	npmPkg.Version = version
 
@@ -73,8 +73,8 @@ func (r Resolver) ResolvePackage(ctx context.Context, constraint *semver.Constra
 	pkg, err := r.client.FetchPackage(ctx, npmPkg.Name, version)
 	if err != nil {
 		npmPkg.Status = StatusFailed
-		npmPkg.Error = err.Error()
-		return fmt.Errorf("fetch package %s/%s: %w", npmPkg.Name, version, err)
+		npmPkg.Error = fmt.Sprintf("fetch package %s/%s: %v", npmPkg.Name, version, err)
+		return fmt.Errorf("fetch package %s/%s: %v", npmPkg.Name, version, err)
 	}
 
 	npmPkg.Status = StatusResolved
@@ -98,9 +98,9 @@ func (r Resolver) ResolvePackage(ctx context.Context, constraint *semver.Constra
 				Name:         depName,
 				Dependencies: map[string]*NpmPackageVersion{},
 				Status:       StatusFailed,
-				Error:        err.Error(),
+				Error:        fmt.Sprintf("invalid version constraint: %v", err),
 			}
-			return fmt.Errorf("invalid version constraint: %w", err)
+			continue
 		}
 
 		npmPkg.Dependencies[depName] = &NpmPackageVersion{
