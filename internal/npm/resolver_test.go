@@ -70,7 +70,6 @@ func TestResolver_ResolvePackage(t *testing.T) {
 				fetcher.EXPECT().FetchPackageMeta(gomock.Any(), "bar").Return(nil, npm.ErrPackageNotFound).AnyTimes()
 				return fetcher
 			},
-
 			expectedNpmPkg: &npm.NpmPackageVersion{
 				Name:    "foo",
 				Version: "1.0.5",
@@ -80,7 +79,7 @@ func TestResolver_ResolvePackage(t *testing.T) {
 						Version:      "",
 						Dependencies: map[string]*npm.NpmPackageVersion{},
 						Status:       npm.StatusFailed,
-						Error:        "package not found",
+						Error:        "fetch package meta bar: package not found",
 					},
 				},
 				Status: npm.StatusResolved,
@@ -148,7 +147,20 @@ func TestResolver_ResolvePackage(t *testing.T) {
 				}, nil)
 				return fetcher
 			},
-			expectedErr: "invalid version constraint: improper constraint: latest",
+			expectedNpmPkg: &npm.NpmPackageVersion{
+				Name:    pkgName,
+				Version: "1.0.5",
+				Dependencies: map[string]*npm.NpmPackageVersion{
+					"bar": {
+						Name:         "bar",
+						Version:      "",
+						Dependencies: map[string]*npm.NpmPackageVersion{},
+						Status:       npm.StatusFailed,
+						Error:        "invalid version constraint: improper constraint: latest",
+					},
+				},
+				Status: npm.StatusResolved,
+			},
 		},
 		{
 			name: "successful resolved package",
@@ -252,7 +264,7 @@ func TestResolver_ResolvePackage(t *testing.T) {
 						Version:      "",
 						Dependencies: map[string]*npm.NpmPackageVersion{},
 						Status:       npm.StatusFailed,
-						Error:        "no compatible versions found",
+						Error:        "resolve highest version: no compatible versions found",
 					},
 				},
 				Status: npm.StatusResolved,
